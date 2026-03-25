@@ -11,9 +11,7 @@ app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', 'your_secret_key_here')
 
 # Database Configuration
-os.makedirs('/data', exist_ok=True)
-
-db_path = '/data/database_v2.db'
+db_path = '/data/database_v2.db' if os.path.exists('/data') else 'database_v2.db'
 app.config['SQLALCHEMY_DATABASE_URI'] = f"sqlite:///{db_path}"
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
