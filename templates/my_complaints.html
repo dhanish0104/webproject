@@ -1,0 +1,207 @@
+{% extends "base.html" %}
+
+{% block title %}Your Complaints | National Grievance Portal{% endblock %}
+
+{% block content %}
+<div class="mb-8 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+    <div>
+        <h2 class="font-display text-3xl text-slate-900 dark:text-white mb-2">Your Complaints</h2>
+        <p class="text-slate-600 dark:text-slate-400">Track the status and history of your submitted grievances.</p>
+    </div>
+    <a href="{{ url_for('raise_complaint') }}"
+        class="bg-primary hover:bg-blue-800 text-white px-6 py-3 rounded-lg font-medium transition-colors flex items-center shadow-lg shadow-blue-900/20 shrink-0">
+        <span class="material-symbols-outlined mr-2">add</span>
+        Raise New
+    </a>
+</div>
+
+{% if complaints %}
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+    {% for complaint in complaints %}
+    <div
+        class="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden hover:shadow-md transition-shadow group flex flex-col h-full">
+        <!-- Image Header -->
+        <div class="h-48 relative overflow-hidden bg-slate-100 dark:bg-slate-700">
+            <img src="{{ get_topic_image(complaint.topic) }}" alt="{{ complaint.topic }}"
+                class="w-full h-full object-cover transform group-hover:scale-105 transition-transform duration-500"
+                onerror="this.src='https://placehold.co/600x400?text=Grievance'">
+            <div class="absolute top-3 right-3">
+                <span class="px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide shadow-sm
+                    {% if complaint.status == 'Resolved' %} bg-green-500 text-white
+                    {% elif complaint.status == 'In Progress' %} bg-blue-500 text-white
+                    {% else %} bg-amber-500 text-white {% endif %}">
+                    {{ complaint.status }}
+                </span>
+            </div>
+            <div class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-4">
+                <p class="text-white font-bold text-shadow truncate">{{ complaint.topic }}</p>
+                <p class="text-white/80 text-xs flex items-center mt-1">
+                    <span class="material-symbols-outlined text-xs mr-1">category</span>
+                    {{ complaint.category }}
+                </p>
+            </div>
+        </div>
+
+        <!-- Body -->
+        <div class="p-5 flex-grow flex flex-col">
+            <div class="mb-4">
+                <p class="text-sm text-slate-800 dark:text-slate-200 mb-2 line-clamp-2 italic">"{{ complaint.description
+                    }}"</p>
+                <div class="flex items-start mb-2">
+                    <span
+                        class="material-symbols-outlined text-slate-400 mt-0.5 mr-2 shrink-0 text-sm">location_on</span>
+                    <p class="text-sm text-slate-600 dark:text-slate-300 line-clamp-2">
+                        {{ complaint.area }}, {{ complaint.district }}
+                    </p>
+                </div>
+                <!-- ID Badge -->
+                <div
+                    class="flex items-center text-xs text-slate-400 font-mono bg-slate-100 dark:bg-slate-700/50 rounded px-2 py-1 w-fit">
+                    <span class="mr-1">ID:</span> #{{ complaint.id }}
+                </div>
+            </div>
+
+            {% if complaint.admin_comment %}
+            <div
+                class="mt-auto bg-green-50 dark:bg-green-900/20 p-3 rounded-lg border border-green-100 dark:border-green-800/30">
+                <p class="text-xs font-bold text-green-700 dark:text-green-400 mb-1 flex items-center">
+                    <span class="material-symbols-outlined text-sm mr-1">check_circle</span> Admin Response
+                </p>
+                <p class="text-xs text-green-800 dark:text-green-300 {% if not complaint.user_feedback %}mb-3{% endif %} line-clamp-2">{{ complaint.admin_comment }}</p>
+                
+                {% if complaint.status == 'Resolved' %}
+                    {% if complaint.user_feedback %}
+                    <div class="mt-2 pt-2 border-t border-green-200/50 dark:border-green-700/50">
+                        <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Your Feedback</p>
+                        <p class="text-xs text-slate-600 dark:text-slate-400 italic">"{{ complaint.user_feedback }}"</p>
+                    </div>
+                    {% else %}
+                    <button onclick="openFeedbackModal('{{ complaint.id }}', '{{ complaint.topic }}')" 
+                            class="w-full py-2 bg-primary text-white text-xs font-bold rounded-lg hover:bg-blue-800 transition-colors shadow-sm">
+                        Give Feedback
+                    </button>
+                    {% endif %}
+                {% endif %}
+            </div>
+            {% else %}
+            <div
+                class="mt-auto pt-4 border-t border-slate-100 dark:border-slate-700 flex justify-between items-center text-xs text-slate-500">
+                <span>Submitted recently</span>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+<!-- Feedback Modal -->
+<div id="feedbackModal" class="fixed inset-0 z-50 hidden" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+    <div class="fixed inset-0 bg-slate-900/75 backdrop-blur-sm transition-opacity"></div>
+    <div class="fixed inset-0 z-10 w-screen overflow-y-auto">
+        <div class="flex min-h-full items-center justify-center p-4 text-center sm:p-0">
+            <div class="relative transform overflow-hidden rounded-2xl bg-white dark:bg-slate-900 text-left shadow-2xl transition-all sm:my-8 sm:w-full sm:max-w-lg">
+                <div class="bg-white dark:bg-slate-900 px-4 pb-4 pt-5 sm:p-8">
+                    <div class="mb-6">
+                        <div class="w-12 h-12 bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 rounded-full flex items-center justify-center mb-4">
+                            <span class="material-symbols-outlined">rate_review</span>
+                        </div>
+                        <h3 class="text-xl font-bold text-slate-900 dark:text-white" id="modal-title">Share Your Experience</h3>
+                        <p class="text-sm text-slate-500 mt-1" id="modalSubtitle">Your feedback helps us improve public services.</p>
+                    </div>
+                    
+                    <input type="hidden" id="feedbackId">
+                    <div class="mb-4">
+                        <label class="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">How was your experience?</label>
+                        <textarea id="feedbackText" rows="4" 
+                            class="w-full rounded-xl border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-primary focus:border-primary sm:text-sm" 
+                            placeholder="Tell us what you think about the resolution..."></textarea>
+                    </div>
+                    
+                    <div class="flex flex-col sm:flex-row-reverse gap-3">
+                        <button type="button" onclick="submitFeedback()" id="submitFeedbackBtn"
+                            class="inline-flex w-full justify-center rounded-xl bg-primary px-6 py-3 text-sm font-bold text-white shadow-lg shadow-blue-900/20 hover:bg-blue-800 transition-all">Submit Feedback</button>
+                        <button type="button" onclick="closeFeedbackModal()"
+                            class="inline-flex w-full justify-center rounded-xl bg-white dark:bg-slate-800 px-6 py-3 text-sm font-bold text-slate-700 dark:text-slate-300 ring-1 ring-inset ring-slate-200 dark:ring-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors">Cancel</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% else %}
+<div
+    class="text-center py-16 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm">
+    <div class="w-20 h-20 bg-slate-50 dark:bg-slate-700 rounded-full flex items-center justify-center mx-auto mb-4">
+        <span class="material-symbols-outlined text-4xl text-slate-300">inbox</span>
+    </div>
+    <h3 class="text-lg font-medium text-slate-900 dark:text-white">No complaints registered yet</h3>
+    <p class="text-slate-500 mt-2 max-w-sm mx-auto">Once you raise a grievance, it will appear here with real-time
+        status tracking.</p>
+    <a href="{{ url_for('raise_complaint') }}"
+        class="mt-6 inline-flex items-center text-primary font-medium hover:underline">
+        Raise your first complaint <span class="material-symbols-outlined ml-1 text-sm">arrow_forward</span>
+    </a>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+    const modal = document.getElementById('feedbackModal');
+    const feedbackId = document.getElementById('feedbackId');
+    const feedbackText = document.getElementById('feedbackText');
+    const modalSubtitle = document.getElementById('modalSubtitle');
+
+    function openFeedbackModal(id, topic) {
+        feedbackId.value = id;
+        modalSubtitle.textContent = `Feedback for: ${topic}`;
+        modal.classList.remove('hidden');
+        document.body.style.overflow = 'hidden';
+    }
+
+    function closeFeedbackModal() {
+        modal.classList.add('hidden');
+        document.body.style.overflow = 'auto';
+        feedbackText.value = '';
+    }
+
+    async function submitFeedback() {
+        const id = feedbackId.value;
+        const text = feedbackText.value.trim();
+        const btn = document.getElementById('submitFeedbackBtn');
+
+        if (!text) {
+            if(typeof showToast !== 'undefined') showToast("Please enter some feedback", "error");
+            return;
+        }
+
+        btn.disabled = true;
+        btn.textContent = "Submitting...";
+
+        try {
+            const response = await fetch(`/submit-feedback/${id}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ feedback: text })
+            });
+            const result = await response.json();
+
+            if (result.success) {
+                if(typeof showToast !== 'undefined') showToast("✅ Feedback submitted!", "success");
+                setTimeout(() => location.reload(), 1000);
+            } else {
+                if(typeof showToast !== 'undefined') showToast("❌ Error: " + result.message, "error");
+                btn.disabled = false;
+                btn.textContent = "Submit Feedback";
+            }
+        } catch (error) {
+            console.error(error);
+            if(typeof showToast !== 'undefined') showToast("Failed to submit feedback", "error");
+            btn.disabled = false;
+            btn.textContent = "Submit Feedback";
+        }
+    }
+</script>
+{% endblock %}

@@ -1,0 +1,50 @@
+{% set active_class = "bg-blue-600 text-white shadow-lg shadow-blue-900/20" %}
+{% set inactive_class = "hover:bg-slate-800 transition-colors" %}
+
+<!-- Dashboard (Active if active_page is 'dashboard') -->
+<a class="flex items-center gap-3 px-4 py-3 rounded-lg {{ active_class if active_page == 'dashboard' else inactive_class }}"
+    href="{{ url_for('admin_dashboard') }}">
+    <span
+        class="material-icons-outlined {{ 'text-white' if active_page == 'dashboard' else 'text-slate-400' }}">dashboard</span>
+    <span class="font-medium">Dashboard</span>
+</a>
+
+<!-- All Complaints -->
+<a class="flex items-center gap-3 px-4 py-3 rounded-lg {{ active_class if active_page == 'all_complaints' else inactive_class }}"
+    href="{{ url_for('admin_complaints') }}">
+    <span
+        class="material-icons-outlined {{ 'text-white' if active_page == 'all_complaints' else 'text-slate-400' }}">assignment</span>
+    <span class="font-medium">All Complaints</span>
+</a>
+
+<!-- Pending Review -->
+<a class="flex items-center gap-3 px-4 py-3 rounded-lg {{ active_class if active_page == 'pending' else inactive_class }}"
+    href="{{ url_for('admin_complaints', status='Pending') }}">
+    <span
+        class="material-icons-outlined {{ 'text-white' if active_page == 'pending' else 'text-slate-400' }}">pending_actions</span>
+    <span class="font-medium">Pending Review</span>
+</a>
+
+<!-- In Progress -->
+<a class="flex items-center gap-3 px-4 py-3 rounded-lg {{ active_class if active_page == 'in_progress' else inactive_class }}"
+    href="{{ url_for('admin_complaints', status='In Progress') }}">
+    <span
+        class="material-icons-outlined {{ 'text-white' if active_page == 'in_progress' else 'text-slate-400' }}">hourglass_top</span>
+    <span class="font-medium">In Progress</span>
+</a>
+
+<!-- Resolved Issues -->
+<a class="flex items-center gap-3 px-4 py-3 rounded-lg {{ active_class if active_page == 'resolved' else inactive_class }}"
+    href="{{ url_for('admin_complaints', status='Resolved') }}">
+    <span
+        class="material-icons-outlined {{ 'text-white' if active_page == 'resolved' else 'text-slate-400' }}">check_circle_outline</span>
+    <span class="font-medium">Resolved Issues</span>
+</a>
+
+<!-- User Management -->
+<a class="flex items-center gap-3 px-4 py-3 rounded-lg {{ active_class if active_page == 'users' else inactive_class }}"
+    href="{{ url_for('admin_users') }}">
+    <span
+        class="material-icons-outlined {{ 'text-white' if active_page == 'users' else 'text-slate-400' }}">people_outline</span>
+    <span class="font-medium">User Management</span>
+</a>

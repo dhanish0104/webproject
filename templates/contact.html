@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+
+{% block title %}Contact Us | National Grievance Portal{% endblock %}
+
+{% block content %}
+<div class="max-w-5xl mx-auto">
+    <div class="mb-12 text-center">
+        <h2 class="font-display text-3xl text-slate-900 dark:text-white mb-4">Contact Us</h2>
+        <p class="text-slate-600 dark:text-slate-400 max-w-2xl mx-auto">We are here to help. Reach out to us via any of
+            the following channels for assistance with your grievances.</p>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+        <!-- Helpline -->
+        <div
+            class="bg-white dark:bg-slate-800 p-8 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm text-center card-hover-effect">
+            <div
+                class="w-16 h-16 bg-orange-50 dark:bg-orange-900/20 rounded-full flex items-center justify-center mx-auto mb-6">
+                <span class="material-symbols-outlined text-3xl text-saffron">headset_mic</span>
+            </div>
+            <h3 class="text-xl font-bold text-slate-900 dark:text-white mb-2">Helpline</h3>
+            <p class="text-2xl font-mono font-bold text-primary dark:text-blue-400 mb-1">1800-11-0000</p>
+            <p class="text-sm text-slate-500">Toll Free (24x7)</p>
+        </div>
+
+        <!-- Email -->
+        <div
+            class="bg-white dark:bg-slate-800 p-8 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm text-center card-hover-effect">
+            <div
+                class="w-16 h-16 bg-green-50 dark:bg-green-900/20 rounded-full flex items-center justify-center mx-auto mb-6">
+                <span class="material-symbols-outlined text-3xl text-green_india">mail</span>
+            </div>
+            <h3 class="text-xl font-bold text-slate-900 dark:text-white mb-2">Email Support</h3>
+            <p class="text-lg font-medium text-primary dark:text-blue-400 mb-1">support@grievance.gov.in</p>
+            <p class="text-sm text-slate-500">Response within 24 hrs</p>
+        </div>
+
+        <!-- Office -->
+        <div
+            class="bg-white dark:bg-slate-800 p-8 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm text-center card-hover-effect">
+            <div
+                class="w-16 h-16 bg-blue-50 dark:bg-blue-900/20 rounded-full flex items-center justify-center mx-auto mb-6">
+                <span class="material-symbols-outlined text-3xl text-primary dark:text-blue-400">location_on</span>
+            </div>
+            <h3 class="text-xl font-bold text-slate-900 dark:text-white mb-2">Head Office</h3>
+            <p class="text-slate-600 dark:text-slate-400 mb-1">National Informatics Centre, A-Block, CGO Complex</p>
+            <p class="text-sm text-slate-500">Lodhi Road, New Delhi - 110003</p>
+        </div>
+    </div>
+</div>
+{% endblock %}

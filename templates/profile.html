@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+
+{% block title %}Profile | National Grievance Portal{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto">
+    <div class="mb-8 text-center">
+        <h2 class="font-display text-3xl text-slate-900 dark:text-white mb-2">My Profile</h2>
+        <p class="text-slate-600 dark:text-slate-400">Manage your personal information.</p>
+    </div>
+
+    <div
+        class="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden">
+        <div
+            class="p-8 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50 flex flex-col items-center">
+            <div
+                class="w-24 h-24 bg-primary rounded-full flex items-center justify-center text-white text-3xl font-bold mb-4 shadow-lg">
+                {{ user.email[0:2].upper() }}
+            </div>
+            <h3 class="text-xl font-bold text-slate-900 dark:text-white">{{ user.email }}</h3>
+            <span class="text-sm text-slate-500">Citizen Account</span>
+        </div>
+
+        <div class="p-8 space-y-6">
+            <div>
+                <label
+                    class="block text-sm font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">Aadhaar
+                    Number</label>
+                <div
+                    class="flex items-center p-4 bg-slate-50 dark:bg-slate-900/50 rounded-lg border border-slate-200 dark:border-slate-700">
+                    <span class="material-symbols-outlined text-slate-400 mr-3">fingerprint</span>
+                    <span class="text-lg font-mono text-slate-900 dark:text-white">{{ user.aadhaar }}</span>
+                </div>
+            </div>
+
+            <div>
+                <label
+                    class="block text-sm font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">Phone
+                    Number</label>
+                <div
+                    class="flex items-center p-4 bg-slate-50 dark:bg-slate-900/50 rounded-lg border border-slate-200 dark:border-slate-700">
+                    <span class="material-symbols-outlined text-slate-400 mr-3">call</span>
+                    <span class="text-lg font-mono text-slate-900 dark:text-white">{{ user.phone }}</span>
+                </div>
+            </div>
+
+            <div>
+                <label
+                    class="block text-sm font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">Email
+                    Address</label>
+                <div
+                    class="flex items-center p-4 bg-slate-50 dark:bg-slate-900/50 rounded-lg border border-slate-200 dark:border-slate-700">
+                    <span class="material-symbols-outlined text-slate-400 mr-3">mail</span>
+                    <span class="text-lg text-slate-900 dark:text-white">{{ user.email }}</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

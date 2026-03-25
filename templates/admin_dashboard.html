@@ -1,0 +1,117 @@
+{% extends 'admin_base.html' %}
+
+{% block title %}Dashboard | Admin Portal{% endblock %}
+
+{% block content %}
+<h2 class="text-2xl font-bold text-slate-900 dark:text-white mb-6">Analytics Overview</h2>
+
+<!-- Stats Grid -->
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+    <!-- Total -->
+    <div
+        class="bg-white dark:bg-slate-900 p-6 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm flex items-center gap-4">
+        <div
+            class="w-12 h-12 rounded-full bg-indigo-100 dark:bg-indigo-900/40 flex items-center justify-center flex-shrink-0">
+            <span class="material-icons-outlined text-indigo-600 dark:text-indigo-400 text-2xl">assignment</span>
+        </div>
+        <div>
+            <p class="text-sm font-medium text-slate-500 dark:text-slate-400">Total Complaints</p>
+            <p class="text-3xl font-bold text-slate-900 dark:text-white">{{ stats.total }}</p>
+        </div>
+    </div>
+
+    <!-- Pending -->
+    <div
+        class="bg-white dark:bg-slate-900 p-6 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm flex items-center gap-4">
+        <div
+            class="w-12 h-12 rounded-full bg-amber-100 dark:bg-amber-900/40 flex items-center justify-center flex-shrink-0">
+            <span class="material-icons-outlined text-amber-600 dark:text-amber-400 text-2xl">pending_actions</span>
+        </div>
+        <div>
+            <p class="text-sm font-medium text-slate-500 dark:text-slate-400">Pending Review</p>
+            <p class="text-3xl font-bold text-slate-900 dark:text-white">{{ stats.pending }}</p>
+        </div>
+    </div>
+
+    <!-- In Progress -->
+    <div
+        class="bg-white dark:bg-slate-900 p-6 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm flex items-center gap-4">
+        <div
+            class="w-12 h-12 rounded-full bg-blue-100 dark:bg-blue-900/40 flex items-center justify-center flex-shrink-0">
+            <span class="material-icons-outlined text-blue-600 dark:text-blue-400 text-2xl">hourglass_top</span>
+        </div>
+        <div>
+            <p class="text-sm font-medium text-slate-500 dark:text-slate-400">In Progress</p>
+            <p class="text-3xl font-bold text-slate-900 dark:text-white">{{ stats.in_progress }}</p>
+        </div>
+    </div>
+
+    <!-- Resolved -->
+    <div
+        class="bg-white dark:bg-slate-900 p-6 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm flex items-center gap-4">
+        <div
+            class="w-12 h-12 rounded-full bg-green-100 dark:bg-green-900/40 flex items-center justify-center flex-shrink-0">
+            <span class="material-icons-outlined text-green-600 dark:text-green-400 text-2xl">check_circle</span>
+        </div>
+        <div>
+            <p class="text-sm font-medium text-slate-500 dark:text-slate-400">Resolved Issues</p>
+            <p class="text-3xl font-bold text-slate-900 dark:text-white">{{ stats.resolved }}</p>
+        </div>
+    </div>
+</div>
+
+<!-- Recent Activity -->
+<h3 class="text-lg font-bold text-slate-900 dark:text-white mb-4">Recent Activity</h3>
+<div
+    class="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
+    <div class="overflow-x-auto">
+        <table class="w-full text-left border-collapse">
+            <thead class="bg-slate-50 dark:bg-slate-800/50">
+                <tr>
+                    <th class="px-6 py-4 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                        ID</th>
+                    <th class="px-6 py-4 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                        Topic</th>
+                    <th class="px-6 py-4 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                        Status</th>
+                    <th
+                        class="px-6 py-4 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider text-right">
+                        Action</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
+                {% for complaint in recent_complaints %}
+                <tr class="hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors">
+                    <td class="px-6 py-4 text-sm font-bold">
+                        <a href="{{ url_for('admin_complaint_details', id=complaint.id) }}"
+                            class="text-blue-600 hover:text-blue-800 hover:underline transition-colors">#{{ complaint.id
+                            }}</a>
+                    </td>
+                    <td class="px-6 py-4">
+                        <span class="text-sm font-medium text-slate-900 dark:text-white">{{ complaint.topic }}</span>
+                        <span class="block text-xs text-slate-500">{{ complaint.category }}</span>
+                    </td>
+                    <td class="px-6 py-4">
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border
+                            {% if complaint.status == 'Resolved' %} bg-green-100 text-green-700 border-green-200 dark:bg-green-900/40 dark:text-green-400
+                            {% elif complaint.status == 'In Progress' %} bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-900/40 dark:text-blue-400
+                            {% else %} bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-900/40 dark:text-amber-400
+                            {% endif %}">
+                            {{ complaint.status }}
+                        </span>
+                    </td>
+                    <td class="px-6 py-4 text-right">
+                        <a href="{{ url_for('admin_complaints') }}?status={{ complaint.status }}"
+                            class="text-sm text-blue-600 hover:underline">View</a>
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="4" class="px-6 py-8 text-center text-slate-500">No recent activity.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

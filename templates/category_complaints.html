@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+
+{% block title %}{{ category }} Problems | National Grievance Portal{% endblock %}
+
+{% block content %}
+<div class="mb-8">
+    <a href="{{ url_for('raise_complaint') }}"
+        class="inline-flex items-center text-slate-500 hover:text-primary transition-colors mb-4 group">
+        <span class="material-symbols-outlined mr-1 group-hover:-translate-x-1 transition-transform">arrow_back</span>
+        Back to Categories
+    </a>
+    <h2 class="font-display text-3xl text-slate-900 dark:text-white mb-2">{{ category }} Complaints</h2>
+    <p class="text-slate-600 dark:text-slate-400">Select the specific issue you are facing to proceed.</p>
+</div>
+
+{% if topics %}
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+    {% for topic in topics %}
+    <a href="{{ url_for('complaint', category=category, description=topic.name) }}"
+        class="group bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden hover:shadow-xl transition-all hover:-translate-y-1 block h-full flex flex-col">
+        <div class="h-48 overflow-hidden relative">
+            <div class="absolute inset-0 bg-slate-200 dark:bg-slate-700 animate-pulse" id="loader-{{ loop.index }}">
+            </div>
+            <img src="{{ topic.image }}" alt="{{ topic.name }}"
+                class="w-full h-full object-cover transform group-hover:scale-110 transition-transform duration-500"
+                onload="document.getElementById('loader-{{ loop.index }}').style.display='none'"
+                onerror="this.src='https://placehold.co/600x400?text=No+Image'">
+            <div
+                class="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity">
+            </div>
+        </div>
+        <div class="p-5 flex-grow flex flex-col justify-between">
+            <h3
+                class="font-bold text-lg text-slate-900 dark:text-white mb-2 group-hover:text-primary dark:group-hover:text-blue-400 transition-colors">
+                {{ topic.name }}</h3>
+            <div
+                class="flex items-center text-primary dark:text-white text-sm font-medium mt-auto opacity-0 group-hover:opacity-100 transition-opacity transform translate-y-2 group-hover:translate-y-0">
+                <span>Select this issue</span>
+                <span class="material-symbols-outlined text-lg ml-1">arrow_right_alt</span>
+            </div>
+        </div>
+    </a>
+    {% endfor %}
+</div>
+{% else %}
+<div class="text-center py-12">
+    <div class="w-16 h-16 bg-slate-100 dark:bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-4">
+        <span class="material-symbols-outlined text-3xl text-slate-400">content_paste_off</span>
+    </div>
+    <h3 class="text-lg font-medium text-slate-900 dark:text-white">No specific topics found</h3>
+    <p class="text-slate-500 mt-2">Please try searching or selecting another category.</p>
+</div>
+{% endif %}
+{% endblock %}

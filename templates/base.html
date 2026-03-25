@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <title>{% block title %}National Grievance Portal{% endblock %}</title>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&amp;family=Inter:wght@400;500;600;700&amp;family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap"
+        rel="stylesheet" />
+    <script src="https://cdn.tailwindcss.com?plugins=forms,typography,container-queries"></script>
+    <script>
+        // Apply theme immediately on load to prevent flash
+        if (localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+            document.documentElement.classList.add('dark');
+        } else {
+            document.documentElement.classList.remove('dark');
+        }
+
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        primary: "#1e3a8a",
+                        sidebar_dark: "#162a4d",
+                        sidebar_active: "#1e3a8a",
+                        saffron: "#FF9933",
+                        green_india: "#138808",
+                        "background-light": "#f1f5f9",
+                        "background-dark": "#0f172a",
+                    },
+                    fontFamily: {
+                        display: ["Playfair Display", "serif"],
+                        sans: ["Inter", "sans-serif"],
+                    },
+                    borderRadius: {
+                        DEFAULT: "0.5rem",
+                    },
+                },
+            },
+        };
+
+        function toggleDarkMode() {
+            document.documentElement.classList.toggle('dark');
+            localStorage.theme = document.documentElement.classList.contains('dark') ? 'dark' : 'light';
+        }
+    </script>
+    <style type="text/tailwindcss">
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .card-hover-effect {
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .card-hover-effect:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1);
+        }
+        .sidebar-item-active {
+            background-color: #1e3a8a;
+            border-left: 4px solid #FF9933;
+        }
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 10px;
+        }
+        .dark .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #334155;
+        }
+    </style>
+    <!-- Allow child styles -->
+    {% block extra_css %}{% endblock %}
+</head>
+
+<body
+    class="bg-background-light dark:bg-background-dark text-slate-800 dark:text-slate-200 font-sans h-screen overflow-hidden flex">
+    <!-- Mobile Top Bar -->
+    <div
+        class="md:hidden bg-sidebar_dark text-white p-4 flex justify-between items-center fixed top-0 left-0 right-0 z-50 h-16 shadow-md">
+        <div class="flex items-center">
+            <button onclick="toggleSidebar()" class="p-1 mr-3 rounded hover:bg-white/10 focus:outline-none">
+                <span class="material-symbols-outlined text-3xl">menu</span>
+            </button>
+            <span class="font-bold tracking-wider text-sm">GRIEVANCE PORTAL</span>
+        </div>
+        <!-- Mobile User Icon (Simple) -->
+        <div
+            class="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-xs font-bold border border-white/20">
+            {% if user and user.email %}{{ user.email[0:2].upper() }}{% else %}GR{% endif %}
+        </div>
+    </div>
+
+    <!-- Overlay (for mobile sidebar) -->
+    <div id="sidebarOverlay" onclick="toggleSidebar()"
+        class="fixed inset-0 bg-black/50 z-40 hidden md:hidden transition-opacity opacity-0"></div>
+
+    <!-- Sidebar -->
+    <aside id="sidebar"
+        class="fixed md:static inset-y-0 left-0 w-64 bg-sidebar_dark shrink-0 flex flex-col text-white z-50 transform -translate-x-full md:translate-x-0 transition-transform duration-300 shadow-xl md:shadow-none pt-16 md:pt-0">
+        <div class="p-6 border-b border-white/10 flex flex-col items-center hidden md:flex">
+            <img alt="Emblem" class="h-16 object-contain mb-4"
+                src="{{ url_for('static', filename='images/emblem.png') }}" />
+            <span class="text-xs font-bold tracking-[0.15em] uppercase text-center">Grievance Portal</span>
+        </div>
+        <nav class="flex-grow py-6 overflow-y-auto custom-scrollbar">
+            <!-- Mobile User Info in Menu -->
+            <div class="px-6 pb-6 mb-4 border-b border-white/10 md:hidden">
+                <div class="flex items-center space-x-3">
+                    <div
+                        class="w-10 h-10 rounded-full bg-primary flex items-center justify-center text-white text-sm font-bold custom-shadow">
+                        {% if user and user.email %}{{ user.email[0:2].upper() }}{% else %}GR{% endif %}
+                    </div>
+                    <div>
+                        <p class="text-sm font-medium text-white truncate w-40">{% if user and user.email %}{{
+                            user.email }}{% else %}User{% endif %}</p>
+                        <a href="{{ url_for('profile') }}" class="text-xs text-slate-400 hover:text-white">View
+                            Profile</a>
+                    </div>
+                </div>
+            </div>
+
+            <ul class="space-y-1">
+                <li>
+                    <a class="flex items-center px-6 py-3 text-sm font-medium {% if request.endpoint == 'dashboard' %}sidebar-item-active{% else %}text-slate-300 hover:bg-white/5 hover:text-white{% endif %} transition-colors"
+                        href="{{ url_for('dashboard') }}">
+                        <span
+                            class="material-symbols-outlined mr-3 {% if request.endpoint != 'dashboard' %}text-white{% endif %}">home</span>
+                        Dashboard
+                    </a>
+                </li>
+                <li>
+                    <a class="flex items-center px-6 py-3 text-sm font-medium {% if request.endpoint == 'profile' %}sidebar-item-active{% else %}text-slate-300 hover:bg-white/5 hover:text-white{% endif %} transition-colors"
+                        href="{{ url_for('profile') }}">
+                        <span
+                            class="material-symbols-outlined mr-3 {% if request.endpoint != 'profile' %}text-white{% endif %}">person</span>
+                        Profile
+                    </a>
+                </li>
+                <li>
+                    <a class="flex items-center px-6 py-3 text-sm font-medium {% if request.endpoint in ['raise_complaint', 'complaint'] %}sidebar-item-active{% else %}text-slate-300 hover:bg-white/5 hover:text-white{% endif %} transition-colors"
+                        href="{{ url_for('raise_complaint') }}">
+                        <span
+                            class="material-symbols-outlined mr-3 {% if request.endpoint not in ['raise_complaint', 'complaint'] %}text-white{% endif %}">note_add</span>
+                        Raise a Complaint
+                    </a>
+                </li>
+                <li>
+                    <a class="flex items-center px-6 py-3 text-sm font-medium {% if request.endpoint == 'my_complaints' %}sidebar-item-active{% else %}text-slate-300 hover:bg-white/5 hover:text-white{% endif %} transition-colors"
+                        href="{{ url_for('my_complaints') }}">
+                        <span
+                            class="material-symbols-outlined mr-3 {% if request.endpoint != 'my_complaints' %}text-white{% endif %}">list_alt</span>
+                        Your Complaints
+                    </a>
+                </li>
+                <li>
+                    <a class="flex items-center px-6 py-3 text-sm font-medium {% if request.endpoint == 'contact' %}sidebar-item-active{% else %}text-slate-300 hover:bg-white/5 hover:text-white{% endif %} transition-colors"
+                        href="{{ url_for('contact') }}">
+                        <span
+                            class="material-symbols-outlined mr-3 {% if request.endpoint != 'contact' %}text-white{% endif %}">mail</span>
+                        Contact Us
+                    </a>
+                </li>
+            </ul>
+        </nav>
+        <div class="p-4 border-t border-white/10">
+            <div class="bg-white/5 rounded-lg p-3">
+                <!-- <p class="text-[10px] uppercase tracking-widest text-slate-400 font-bold mb-1">Status</p> -->
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center">
+                        <div class="w-2 h-2 rounded-full bg-green-500 mr-2"></div>
+                        <span class="text-xs">Online</span>
+                    </div>
+                    <button class="p-1 rounded-full hover:bg-white/10 transition-colors md:hidden"
+                        onclick="toggleDarkMode()">
+                        <span class="material-symbols-outlined text-slate-400 text-lg">dark_mode</span>
+                    </button>
+                </div>
+                <a href="{{ url_for('logout') }}"
+                    class="text-xs text-red-400 hover:text-red-300 mt-2 block font-medium">Logout</a>
+            </div>
+        </div>
+    </aside>
+
+    <!-- Main Content Wrapper -->
+    <div class="flex-grow flex flex-col min-w-0 h-full pt-16 md:pt-0">
+        <!-- Header (Desktop Only) -->
+        <header
+            class="bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 h-16 shrink-0 hidden md:flex items-center px-8 justify-between">
+            <h1 class="text-lg font-semibold text-primary dark:text-blue-400">National Grievance Portal</h1>
+            <div class="flex items-center space-x-6">
+                <nav class="hidden md:flex items-center space-x-6 text-sm font-medium">
+
+                </nav>
+                <div class="h-6 w-px bg-slate-200 dark:bg-slate-700"></div>
+                <button class="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                    onclick="toggleDarkMode()">
+                    <span class="material-symbols-outlined text-slate-500 dark:text-slate-400">dark_mode</span>
+                </button>
+                <div class="flex items-center space-x-3">
+                    <div
+                        class="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-white text-xs font-bold">
+                        {% if user and user.email %}{{ user.email[0:2].upper() }}{% else %}GR{% endif %}
+                    </div>
+                    <span class="text-sm font-medium hidden sm:inline-block">
+                        {% if user and user.email %}{{ user.email }}{% else %}User{% endif %}
+                    </span>
+                </div>
+            </div>
+        </header>
+
+        <!-- Dynamic Page Content -->
+        <main class="flex-grow overflow-y-auto custom-scrollbar bg-slate-50 dark:bg-slate-950">
+            <div class="max-w-7xl mx-auto px-8 py-8">
+                {% block content %}{% endblock %}
+            </div>
+        </main>
+    </div>
+    {% block scripts %}
+    <script>
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('sidebarOverlay');
+
+            if (sidebar.classList.contains('-translate-x-full')) {
+                // Open
+                sidebar.classList.remove('-translate-x-full');
+                overlay.classList.remove('hidden');
+                // Small delay to allow display:block to apply before opacity transition
+                setTimeout(() => {
+                    overlay.classList.remove('opacity-0');
+                }, 10);
+            } else {
+                // Close
+                sidebar.classList.add('-translate-x-full');
+                overlay.classList.add('opacity-0');
+                setTimeout(() => {
+                    overlay.classList.add('hidden');
+                }, 300);
+            }
+        }
+    </script>
+    {% endblock %}
+</body>
+
+</html>

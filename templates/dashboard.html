@@ -1,0 +1,235 @@
+{% extends "base.html" %}
+
+{% block title %}Grievance Dashboard | National Portal{% endblock %}
+
+{% block extra_css %}
+<style>
+    .success-card {
+        transition: all 0.3s ease;
+    }
+    .success-card:hover {
+        transform: translateY(-8px);
+        box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+    }
+    .carousel-container {
+        display: flex;
+        transition: transform 0.5s ease;
+    }
+    .carousel-item {
+        min-width: 100%;
+    }
+    @media (min-width: 768px) {
+        .carousel-item {
+            min-width: 33.333%;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<header class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
+    <div>
+        <h2 class="text-3xl font-bold text-slate-900 dark:text-white">Grievance Dashboard</h2>
+        <p class="text-slate-500 dark:text-slate-400">Welcome back, here is what's happening today.</p>
+    </div>
+    <div class="flex gap-4">
+        <a href="{{ url_for('raise_complaint') }}" class="bg-primary hover:bg-blue-800 text-white px-6 py-2.5 rounded-lg font-semibold flex items-center gap-2 shadow-lg shadow-blue-900/10 transition-all hover:-translate-y-0.5">
+            <span class="material-symbols-outlined text-xl">add</span>
+            New Complaint
+        </a>
+    </div>
+</header>
+
+<!-- Recent Success Stories Carousel -->
+<section class="mb-12 overflow-hidden">
+    <div class="flex items-center justify-between mb-6">
+        <h3 class="text-xl font-bold flex items-center gap-2">
+            <span class="material-symbols-outlined text-green_india">verified</span>
+            Recent Success Stories
+        </h3>
+        <div class="flex gap-2">
+            <button onclick="moveCarousel(-1)" class="p-2 rounded-full border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
+                <span class="material-symbols-outlined">chevron_left</span>
+            </button>
+            <button onclick="moveCarousel(1)" class="p-2 rounded-full border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
+                <span class="material-symbols-outlined">chevron_right</span>
+            </button>
+        </div>
+    </div>
+    
+    {% if success_stories %}
+    <div class="relative overflow-hidden -mx-4 px-4">
+        <div id="carouselTrack" class="carousel-container flex gap-6">
+            {% for story in success_stories %}
+            <div class="carousel-item">
+                <div class="bg-white dark:bg-slate-900 rounded-xl overflow-hidden shadow-sm border border-slate-100 dark:border-slate-800 group h-full flex flex-col success-card">
+                    <div class="h-48 w-full overflow-hidden bg-slate-100 dark:bg-slate-800">
+                        <img src="{{ get_topic_image(story.topic) }}" alt="{{ story.topic }}" 
+                             class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
+                             onerror="this.src='https://placehold.co/600x400?text=Resolved'">
+                        <div class="absolute top-4 right-4">
+                            <span class="text-xs font-bold px-3 py-1 bg-green-500 text-white rounded-full shadow-lg">RESOLVED</span>
+                        </div>
+                    </div>
+                    <div class="p-6 flex-grow flex flex-col">
+                        <div class="flex justify-between items-start mb-3">
+                            <h4 class="font-bold text-lg text-slate-900 dark:text-white line-clamp-1">{{ story.topic }}</h4>
+                        </div>
+                        
+                        {% if story.admin_comment %}
+                        <p class="text-slate-600 dark:text-slate-400 text-sm leading-relaxed mb-4 line-clamp-3">
+                            <span class="text-primary font-bold">Admin:</span> "{{ story.admin_comment }}"
+                        </p>
+                        {% endif %}
+
+                        {% if story.user_feedback %}
+                        <div class="mt-auto pt-4 border-t border-slate-50 dark:border-slate-800">
+                            <p class="text-xs font-medium text-slate-500 flex items-center gap-1 mb-1">
+                                <span class="material-symbols-outlined text-xs text-amber-500">format_quote</span>
+                                Citizen Feedback
+                            </p>
+                            <p class="text-sm text-slate-700 dark:text-slate-300 italic line-clamp-2">"{{ story.user_feedback }}"</p>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% else %}
+    <div class="bg-white dark:bg-slate-900 rounded-2xl p-8 border border-dashed border-slate-300 dark:border-slate-800 text-center">
+        <div class="w-12 h-12 bg-slate-50 dark:bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-4">
+            <span class="material-symbols-outlined text-slate-300">verified</span>
+        </div>
+        <p class="text-slate-500">Resolved stories will appear here to inspire others.</p>
+    </div>
+    {% endif %}
+</section>
+
+<!-- Dashboard Overview Stats -->
+<section class="mb-12">
+    <h3 class="text-xl font-bold mb-6 flex items-center gap-2">
+        <span class="material-symbols-outlined text-primary">analytics</span>
+        Dashboard Overview
+    </h3>
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+        <!-- Total Complaints -->
+        <div class="bg-white dark:bg-slate-900 p-6 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800">
+            <div class="flex items-center justify-between mb-4">
+                <div class="p-3 bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-xl">
+                    <span class="material-symbols-outlined">fact_check</span>
+                </div>
+            </div>
+            <p class="text-slate-500 dark:text-slate-400 text-sm font-semibold uppercase tracking-wider">Total Complaints</p>
+            <h4 class="text-3xl font-bold mt-2 text-slate-900 dark:text-white">{{ total_complaints }}</h4>
+        </div>
+        <!-- In Progress -->
+        <div class="bg-white dark:bg-slate-900 p-6 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800">
+            <div class="flex items-center justify-between mb-4">
+                <div class="p-3 bg-amber-50 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 rounded-xl">
+                    <span class="material-symbols-outlined">hourglass_top</span>
+                </div>
+            </div>
+            <p class="text-slate-500 dark:text-slate-400 text-sm font-semibold uppercase tracking-wider">In Progress</p>
+            <h4 class="text-3xl font-bold mt-2 text-slate-900 dark:text-white">{{ in_progress_count }}</h4>
+        </div>
+        <!-- Resolved -->
+        <div class="bg-white dark:bg-slate-900 p-6 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800">
+            <div class="flex items-center justify-between mb-4">
+                <div class="p-3 bg-green-50 dark:bg-green-900/30 text-green_india dark:text-green-400 rounded-xl">
+                    <span class="material-symbols-outlined">task_alt</span>
+                </div>
+            </div>
+            <p class="text-slate-500 dark:text-slate-400 text-sm font-semibold uppercase tracking-wider">Resolved</p>
+            <h4 class="text-3xl font-bold mt-2 text-slate-900 dark:text-white">{{ resolved_count }}</h4>
+        </div>
+        <!-- Pending Action -->
+        <div class="bg-white dark:bg-slate-900 p-6 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800">
+            <div class="flex items-center justify-between mb-4">
+                <div class="p-3 bg-rose-50 dark:bg-rose-900/30 text-rose-600 dark:text-rose-400 rounded-xl">
+                    <span class="material-symbols-outlined">priority_high</span>
+                </div>
+            </div>
+            <p class="text-slate-500 dark:text-slate-400 text-sm font-semibold uppercase tracking-wider">Pending Action</p>
+            <h4 class="text-3xl font-bold mt-2 text-slate-900 dark:text-white">{{ pending_count }}</h4>
+        </div>
+    </div>
+</section>
+
+<!-- Secondary List Section -->
+<section class="max-w-4xl">
+    <div class="bg-white dark:bg-slate-900 rounded-2xl shadow-md border border-slate-100 dark:border-slate-800 overflow-hidden">
+        <div class="px-8 py-6 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
+            <h3 class="text-lg font-bold">Your Recent Complaints</h3>
+            <a class="text-primary text-sm font-bold hover:underline" href="{{ url_for('my_complaints') }}">View All</a>
+        </div>
+        <div class="p-4 space-y-4">
+            {% if recent_complaints %}
+                {% for complaint in recent_complaints %}
+                <div class="group flex flex-col p-4 rounded-xl border border-transparent hover:border-slate-100 dark:hover:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-all">
+                    <div class="flex items-center gap-4">
+                        <div class="w-14 h-14 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-primary overflow-hidden shrink-0">
+                            <img src="{{ get_topic_image(complaint.topic) }}" class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" onerror="this.src='https://placehold.co/100x100?text=G'">
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <h5 class="font-bold text-slate-900 dark:text-white truncate">{{ complaint.topic }}</h5>
+                            <p class="text-sm text-slate-500 mt-0.5">ID: #{{ complaint.id }} • {{ complaint.category }}</p>
+                        </div>
+                        <div class="text-right shrink-0">
+                            <span class="inline-block px-3 py-1 rounded-full text-xs font-bold shadow-sm mb-1
+                                {% if complaint.status == 'Resolved' %} bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400
+                                {% elif complaint.status == 'In Progress' %} bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400
+                                {% else %} bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 {% endif %}">
+                                {{ complaint.status }}
+                            </span>
+                        </div>
+                    </div>
+                    {% if complaint.admin_comment %}
+                    <div class="mt-3 ml-18 bg-green-50/50 dark:bg-green-900/10 p-3 rounded-lg border-l-4 border-green-500">
+                        <p class="text-[10px] font-black text-green-600 dark:text-green-400 uppercase tracking-widest mb-1 flex items-center gap-1">
+                            <span class="material-symbols-outlined text-xs">verified_user</span>
+                            Department Response
+                        </p>
+                        <p class="text-xs text-slate-700 dark:text-slate-300 italic">"{{ complaint.admin_comment }}"</p>
+                    </div>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            {% else %}
+                <div class="p-8 text-center bg-slate-50 dark:bg-slate-800/20 rounded-xl">
+                    <p class="text-slate-500">You haven't raised any complaints yet.</p>
+                    <a href="{{ url_for('raise_complaint') }}" class="text-primary font-bold mt-2 inline-block">Raise First Complaint</a>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</section>
+
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+    let currentSlide = 0;
+    const track = document.getElementById('carouselTrack');
+    const items = document.querySelectorAll('.carousel-item');
+    
+    function moveCarousel(direction) {
+        if (!track || items.length === 0) return;
+        
+        const itemWidth = items[0].offsetWidth + 24; // Width + gap
+        const visibleItems = window.innerWidth >= 768 ? 3 : 1;
+        const maxSlide = Math.max(0, items.length - visibleItems);
+        
+        currentSlide = Math.max(0, Math.min(currentSlide + direction, maxSlide));
+        track.style.transform = `translateX(-${currentSlide * itemWidth}px)`;
+    }
+
+    // Auto-resize handler
+    window.addEventListener('resize', () => {
+        currentSlide = 0;
+        if(track) track.style.transform = 'translateX(0)';
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+
+{% block title %}Raise Complaint | National Grievance Portal{% endblock %}
+
+{% block content %}
+<div class="mb-8 text-center">
+    <h1 class="font-display text-3xl text-slate-900 dark:text-white mb-4">📢 Select a National Issue</h1>
+
+    <!-- Search Bar -->
+    <div class="relative max-w-xl mx-auto">
+        <span
+            class="absolute inset-y-0 left-0 flex items-center pl-4 text-slate-400 material-symbols-outlined">search</span>
+        <input type="text" id="searchInput" placeholder="Search problems..."
+            class="w-full pl-12 pr-4 py-3 rounded-full border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-sm focus:border-primary focus:ring-primary">
+    </div>
+</div>
+
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6" id="categoryGrid">
+
+    <!-- Helper Macro for Cards -->
+    {% macro category_card(name, icon, color_cls, bg_cls) %}
+    <a href="{{ url_for('category_complaints', category_name=name) }}"
+        class="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden hover:shadow-lg transition-all hover:-translate-y-1 group block h-full">
+        <div class="p-8 text-center flex flex-col items-center h-full justify-center">
+            <div
+                class="w-16 h-16 {{ bg_cls }} rounded-full flex items-center justify-center mb-6 text-3xl {{ color_cls }} group-hover:scale-110 transition-transform duration-300">
+                <span class="material-symbols-outlined">{{ icon }}</span>
+            </div>
+            <h3 class="font-bold text-xl text-slate-900 dark:text-white mb-2">{{ name }}</h3>
+            <p class="text-sm text-slate-500 group-hover:text-primary dark:group-hover:text-blue-400 transition-colors">
+                Click to view topics</p>
+        </div>
+    </a>
+    {% endmacro %}
+
+    {{ category_card('Infrastructure', 'add_road', 'text-slate-600', 'bg-slate-100') }}
+
+    {{ category_card('Water & Sanitation', 'water_drop', 'text-blue-600', 'bg-blue-50') }}
+
+    {{ category_card('Electricity', 'bolt', 'text-amber-600', 'bg-amber-50') }}
+
+    {{ category_card('Healthcare', 'medical_services', 'text-red-600', 'bg-red-50') }}
+
+    {{ category_card('Education', 'school', 'text-cyan-600', 'bg-cyan-50') }}
+
+    {{ category_card('Housing', 'apartment', 'text-gray-600', 'bg-gray-100') }}
+
+    {{ category_card('Waste Mgmt', 'delete', 'text-green-600', 'bg-green-50') }}
+
+    {{ category_card('Transport', 'directions_bus', 'text-orange-600', 'bg-orange-50') }}
+
+    {{ category_card('Law & Order', 'gavel', 'text-slate-700', 'bg-slate-200') }}
+
+    {{ category_card('Environment', 'forest', 'text-green-700', 'bg-green-100') }}
+
+</div>
+
+<!-- Empty State Message (Hidden by default) -->
+<div id="noResults" class="hidden text-center py-12">
+    <div class="w-16 h-16 bg-slate-100 dark:bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-4">
+        <span class="material-symbols-outlined text-3xl text-slate-400">search_off</span>
+    </div>
+    <h3 class="text-lg font-medium text-slate-900 dark:text-white">No categories found</h3>
+    <p class="text-slate-500 mt-2">Try adjusting your search terms.</p>
+</div>
+
+<script src="{{ url_for('static', filename='js/script.js') }}"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const searchInput = document.getElementById('searchInput');
+        const cards = document.querySelectorAll('#categoryGrid > a');
+        const noResultsMessage = document.getElementById('noResults');
+
+        if(searchInput) {
+            // Disable browser autocomplete dropdown to keep UI clean
+            searchInput.setAttribute('autocomplete', 'off');
+
+            searchInput.addEventListener('input', function(e) {
+                const searchTerm = e.target.value.toLowerCase().trim();
+                let hasVisibleCards = false;
+
+                cards.forEach(card => {
+                    const categoryName = card.querySelector('h3').textContent.toLowerCase();
+                    if (categoryName.includes(searchTerm)) {
+                        card.style.display = '';
+                        hasVisibleCards = true;
+                    } else {
+                        card.style.display = 'none';
+                    }
+                });
+                
+                if (hasVisibleCards) {
+                    noResultsMessage.classList.add('hidden');
+                } else {
+                    noResultsMessage.classList.remove('hidden');
+                }
+            });
+        }
+    });
+</script>
+{% endblock %}
