@@ -12,9 +12,14 @@ app.secret_key = os.environ.get('SECRET_KEY', 'your_secret_key_here')
 
 # Database Configuration
 # Using Render's persistent disk path
-DB_PATH = '/data/database_v2.db'
-# Fallback to local path if /data doesn't exist (for local dev)
-if not os.path.exists('/data'):
+DB_DIR = '/data'
+DB_PATH = os.path.join(DB_DIR, 'database_v2.db')
+
+# Ensure the database directory exists
+if os.path.exists(DB_DIR):
+    os.makedirs(DB_DIR, exist_ok=True)
+else:
+    # Fallback to local path if /data doesn't exist (e.g. local dev)
     DB_PATH = 'database_v2.db'
 
 app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', f'sqlite:///{DB_PATH}')
@@ -222,13 +227,14 @@ def seed_data():
 
 # Create tables and seed safely
 with app.app_context():
-    # Only create/seed if the database file is new
-    if not os.path.exists(DB_PATH) or os.path.getsize(DB_PATH) == 0:
-        print(f"Initializing database at {DB_PATH}...")
-        db.create_all()
+    print(f"Checking database at {DB_PATH}...")
+    db.create_all()
+    # Check if we need to seed
+    if User.query.first() is None:
+        print("Database is empty. Seeding initial data...")
         seed_data()
     else:
-        print(f"Database already exists at {DB_PATH}.")
+        print("Database already contains data. Skipping seeding.")
 
 # --- Routes ---
 
@@ -342,6 +348,7 @@ def send_otp():
         msg = Message('Your Login OTP', recipients=[email])
         msg.body = f'Your OTP for login is: {otp}'
         mail.send(msg)
+        print(f"DEBUG: OTP for {email} is {otp}") # Helpful for Render logs if email fails
         return jsonify({'success': True, 'message': 'OTP sent to email'})
     except Exception as e:
         print(f"Error (Mail/DB): {e}")
