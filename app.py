@@ -11,21 +11,10 @@ app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', 'your_secret_key_here')
 
 # Database Configuration
-# Using Render's persistent disk path
-DB_DIR = '/data'
-DB_PATH = os.path.join(DB_DIR, 'database_v2.db')
+os.makedirs('/data', exist_ok=True)
 
-# FORCE create the directory (Crucial for Render persistent disks)
-try:
-    if not os.path.exists(DB_DIR):
-        print(f"Creating database directory at {DB_DIR}...")
-        os.makedirs(DB_DIR, exist_ok=True)
-except Exception as e:
-    print(f"Error creating directory {DB_DIR}: {e}")
-    # Fallback for local development if /data is not accessible
-    DB_PATH = 'database_v2.db'
-
-app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', f'sqlite:///{DB_PATH}')
+db_path = '/data/database_v2.db'
+app.config['SQLALCHEMY_DATABASE_URI'] = f"sqlite:///{db_path}"
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 # Admin Credentials
@@ -228,20 +217,10 @@ def seed_data():
         db.session.commit()
         print("Seeding complete.")
 
-# Create tables and seed safely
 with app.app_context():
-    print(f"Initializing database at: {DB_PATH}")
     db.create_all()
-    
-    # Check if we need to seed initial users
-    user_count = User.query.count()
-    print(f"Current users in DB: {user_count}")
-    
-    if user_count == 0:
-        print("Seeding database with initial users...")
+    if User.query.count() == 0:
         seed_data()
-    else:
-        print("Database already contains data. Skipping seed.")
 
 # --- Routes ---
 
@@ -354,50 +333,36 @@ def submit_feedback(id):
 def send_otp():
     try:
         data = request.get_json(force=True)
-        print(f"DEBUG DATA: {data}")
-        
+        print("DATA:", data)
+
+        if not data:
+            return jsonify({'success': False, 'message': 'No data received'}), 400
+
         email = data.get('email')
         aadhaar = data.get('aadhaar')
         phone = data.get('phone')
-        
-        print(f"DEBUG INPUT: {email}, {aadhaar}, {phone}")
 
-        if not (email and aadhaar and phone):
-            return jsonify({'success': False, 'message': 'Aadhaar, Phone, and Email are required'}), 400
+        print("INPUT:", email, aadhaar, phone)
 
-        # Validate User exists in DB and exactly matches credentials
         user = User.query.filter_by(email=email, aadhaar=aadhaar, phone=phone).first()
-        print(f"DEBUG USER FOUND: {user}")
-        
+        print("USER:", user)
+
         if not user:
-             return jsonify({'success': False, 'message': 'User not found. Please register or use valid credentials.'}), 404
+            return jsonify({'success': False, 'message': 'User not found'}), 404
 
         otp = generate_otp()
-        print(f"DEBUG OTP GENERATED: {otp}")
-        
-        try:
-            # Store OTP in Database
-            user.otp = otp
-            db.session.commit()
-            print(f"DEBUG OTP STORED: {email}")
-            
-            # Send Email
-            msg = Message('Your Login OTP', recipients=[email])
-            msg.body = f'Your OTP for login is: {otp}'
-            mail.send(msg)
-            print(f"DEBUG EMAIL SENT: {email}")
-            return jsonify({'success': True, 'message': 'OTP sent to email'})
-        except Exception as e:
-            print(f"DEBUG ERROR MAIL/DB: {e}")
-            # Return OTP in response for testing/demo when email/db fails
-            return jsonify({
-                'success': True, 
-                'message': f'System Partial Error: Your OTP is {otp}', 
-                'dev_otp': otp
-            })
+        user.otp = otp
+        db.session.commit()
+
+        print("OTP GENERATED:", otp)
+
+        # TEMP: skip email to avoid crash
+        return jsonify({'success': True, 'otp': otp})
+
     except Exception as e:
-        print(f"DEBUG 🔥 CRITICAL ERROR: {e}")
-        return jsonify({'success': False, 'message': 'Internal Server Error', 'error': str(e)}), 500
+        import traceback
+        print("🔥 ERROR:", traceback.format_exc())
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route('/register', methods=['GET', 'POST'])
 def register():
