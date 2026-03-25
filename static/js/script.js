@@ -47,11 +47,13 @@ async function sendOTP() {
             body: JSON.stringify({ email: email, aadhaar: aadhaar, phone: phone })
         });
 
+        // Use clone() to allow reading the body twice (once as JSON, once as text if needed)
+        let responseClone = response.clone();
         let result;
         try {
             result = await response.json();
         } catch (jsonError) {
-            let errorText = await response.text();
+            let errorText = await responseClone.text();
             console.error('JSON Parse Error:', jsonError);
             console.error('Response Status:', response.status);
             console.error('Response Text:', errorText);
