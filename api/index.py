@@ -5,6 +5,7 @@ from datetime import datetime
 import random
 import string
 import os
+from serverless_wsgi import handle_request
 
 # Initialize Flask app
 # Since this is in the /api/ folder, templates and static are in the parent directory
@@ -481,3 +482,6 @@ def admin_logout():
 
 # Vercel needs the 'app' object to be available at the module level
 # We don't call app.run() here.
+
+def handler(event, context):
+    return handle_request(app, event, context)

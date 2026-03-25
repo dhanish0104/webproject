@@ -13,4 +13,3 @@ check_db.py
 debug_app.py
 fix_images.ps1
 Procfile
-app.py
