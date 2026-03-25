@@ -352,41 +352,50 @@ def submit_feedback(id):
 
 @app.route('/send-otp', methods=['POST'])
 def send_otp():
-    data = request.json
-    email = data.get('email')
-    aadhaar = data.get('aadhaar')
-    phone = data.get('phone')
-    
-    if not (email and aadhaar and phone):
-        return jsonify({'success': False, 'message': 'Aadhaar, Phone, and Email are required'}), 400
-
-    # Validate User exists in DB and exactly matches credentials
-    user = User.query.filter_by(email=email, aadhaar=aadhaar, phone=phone).first()
-    if not user:
-         return jsonify({'success': False, 'message': 'User not found. Please register or use valid credentials.'}), 404
-
-    otp = generate_otp()
-    
     try:
-        # Store OTP in Database
-        user.otp = otp
-        db.session.commit()
+        data = request.json
+        print(f"DEBUG: Received OTP request data: {data}")
         
-        # Send Email
-        msg = Message('Your Login OTP', recipients=[email])
-        msg.body = f'Your OTP for login is: {otp}'
-        mail.send(msg)
-        print(f"DEBUG: OTP for {email} is {otp}") # Helpful for Render logs if email fails
-        return jsonify({'success': True, 'message': 'OTP sent to email'})
+        email = data.get('email')
+        aadhaar = data.get('aadhaar')
+        phone = data.get('phone')
+        
+        if not (email and aadhaar and phone):
+            return jsonify({'success': False, 'message': 'Aadhaar, Phone, and Email are required'}), 400
+
+        # Validate User exists in DB and exactly matches credentials
+        user = User.query.filter_by(email=email, aadhaar=aadhaar, phone=phone).first()
+        print(f"DEBUG: User found: {user}")
+        
+        if not user:
+             return jsonify({'success': False, 'message': 'User not found. Please register or use valid credentials.'}), 404
+
+        otp = generate_otp()
+        print(f"DEBUG: Generated OTP: {otp}")
+        
+        try:
+            # Store OTP in Database
+            user.otp = otp
+            db.session.commit()
+            print(f"DEBUG: OTP stored in DB for {email}")
+            
+            # Send Email
+            msg = Message('Your Login OTP', recipients=[email])
+            msg.body = f'Your OTP for login is: {otp}'
+            mail.send(msg)
+            print(f"DEBUG: Email sent successfully to {email}")
+            return jsonify({'success': True, 'message': 'OTP sent to email'})
+        except Exception as e:
+            print(f"DEBUG: Error during OTP storage/mail send: {e}")
+            # Return OTP in response for testing/demo when email/db fails
+            return jsonify({
+                'success': True, 
+                'message': f'System Partial Error: Your OTP is {otp}', 
+                'dev_otp': otp
+            })
     except Exception as e:
-        print(f"Error (Mail/DB): {e}")
-        # Return OTP in response for testing/demo when email/db fails
-        # Ensure we return success so user can login even if email fails
-        return jsonify({
-            'success': True, 
-            'message': f'System Partial Error: Your OTP is {otp}', 
-            'dev_otp': otp
-        })
+        print(f"DEBUG: CRITICAL ERROR in send_otp: {e}")
+        return jsonify({'success': False, 'message': 'Internal Server Error', 'error': str(e)}), 500
 
 @app.route('/register', methods=['GET', 'POST'])
 def register():

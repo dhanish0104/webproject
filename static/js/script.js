@@ -46,9 +46,23 @@ async function sendOTP() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ email: email, aadhaar: aadhaar, phone: phone })
         });
-        let result = await response.json();
+
+        let result;
+        try {
+            result = await response.json();
+        } catch (jsonError) {
+            let errorText = await response.text();
+            console.error('JSON Parse Error:', jsonError);
+            console.error('Response Status:', response.status);
+            console.error('Response Text:', errorText);
+            showToast("Server returned an invalid response. Check console for details.", "error");
+            otpBtn.innerText = "Send OTP";
+            otpBtn.disabled = false;
+            return;
+        }
 
         if (result.success) {
+            // ... (rest of the success handling remains the same)
             // Show OTP in toast if returned (Dev Mode / Fallback)
             if (result.dev_otp) {
                 showToast(`OTP: ${result.dev_otp} (Email failed)`, "info");
