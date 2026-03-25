@@ -8,15 +8,21 @@ import os
 import threading
 
 app = Flask(__name__)
-app.secret_key = 'your_secret_key_here'  # Change this for production
+app.secret_key = os.environ.get('SECRET_KEY', 'your_secret_key_here')
 
 # Database Configuration
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///database_v2.db'
+# Using Render's persistent disk path
+DB_PATH = '/data/database_v2.db'
+# Fallback to local path if /data doesn't exist (for local dev)
+if not os.path.exists('/data'):
+    DB_PATH = 'database_v2.db'
+
+app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', f'sqlite:///{DB_PATH}')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 # Admin Credentials
-app.config['ADMIN_USERNAME'] = 'admin'
-app.config['ADMIN_PASSWORD'] = 'admin123'
+app.config['ADMIN_USERNAME'] = os.environ.get('ADMIN_USERNAME', 'admin')
+app.config['ADMIN_PASSWORD'] = os.environ.get('ADMIN_PASSWORD', 'admin123')
 
 # Mail Configuration
 app.config['MAIL_SERVER'] = 'smtp.gmail.com'
@@ -214,10 +220,15 @@ def seed_data():
         db.session.commit()
         print("Seeding complete.")
 
-# Create tables and seed
+# Create tables and seed safely
 with app.app_context():
-    db.create_all()
-    seed_data()
+    # Only create/seed if the database file is new
+    if not os.path.exists(DB_PATH) or os.path.getsize(DB_PATH) == 0:
+        print(f"Initializing database at {DB_PATH}...")
+        db.create_all()
+        seed_data()
+    else:
+        print(f"Database already exists at {DB_PATH}.")
 
 # --- Routes ---
 
