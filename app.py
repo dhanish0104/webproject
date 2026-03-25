@@ -15,11 +15,14 @@ app.secret_key = os.environ.get('SECRET_KEY', 'your_secret_key_here')
 DB_DIR = '/data'
 DB_PATH = os.path.join(DB_DIR, 'database_v2.db')
 
-# Ensure the database directory exists
-if os.path.exists(DB_DIR):
-    os.makedirs(DB_DIR, exist_ok=True)
-else:
-    # Fallback to local path if /data doesn't exist (e.g. local dev)
+# FORCE create the directory (Crucial for Render persistent disks)
+try:
+    if not os.path.exists(DB_DIR):
+        print(f"Creating database directory at {DB_DIR}...")
+        os.makedirs(DB_DIR, exist_ok=True)
+except Exception as e:
+    print(f"Error creating directory {DB_DIR}: {e}")
+    # Fallback for local development if /data is not accessible
     DB_PATH = 'database_v2.db'
 
 app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', f'sqlite:///{DB_PATH}')
@@ -227,22 +230,47 @@ def seed_data():
 
 # Create tables and seed safely
 with app.app_context():
-    print(f"Checking database at {DB_PATH}...")
+    print(f"Initializing database at: {DB_PATH}")
     db.create_all()
-    # Check if we need to seed
-    if User.query.first() is None:
-        print("Database is empty. Seeding initial data...")
+    
+    # Check if we need to seed initial users
+    user_count = User.query.count()
+    print(f"Current users in DB: {user_count}")
+    
+    if user_count == 0:
+        print("Seeding database with initial users...")
         seed_data()
     else:
-        print("Database already contains data. Skipping seeding.")
+        print("Database already contains data. Skipping seed.")
 
 # --- Routes ---
 
 @app.route('/')
 def home():
+    # Diagnostic print for logs
+    try:
+        print(f"Home route accessed. DB count: {User.query.count()}")
+    except Exception as e:
+        print(f"DB Error on home: {e}")
+
     if 'user_id' in session:
         return redirect(url_for('dashboard'))
     return render_template('index.html')
+
+@app.route('/test-db')
+def test_db():
+    """Temporary route to verify DB is writable."""
+    try:
+        test_user = User(
+            aadhaar="123456789012", 
+            phone="9999999999", 
+            email="test@example.com"
+        )
+        db.session.add(test_user)
+        db.session.commit()
+        return f"User added! Total users now: {User.query.count()}"
+    except Exception as e:
+        return f"Database Error: {e}"
 
 @app.route('/dashboard')
 def dashboard():
