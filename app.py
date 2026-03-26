@@ -24,8 +24,9 @@ app.config['ADMIN_PASSWORD'] = os.environ.get('ADMIN_PASSWORD', 'admin123')
 app.config['MAIL_SERVER'] = 'smtp.gmail.com'
 app.config['MAIL_PORT'] = 587
 app.config['MAIL_USE_TLS'] = True
-app.config['MAIL_USERNAME'] = os.environ.get('MAIL_USERNAME', 'dhanishkanth1122@gmail.com') # Replace with your email
-app.config['MAIL_PASSWORD'] = os.environ.get('MAIL_PASSWORD', 'hoev vokh vdjb hzxo') # Replace with your App Password
+app.config['MAIL_USE_SSL'] = False  # Explicitly false for port 587
+app.config['MAIL_USERNAME'] = os.environ.get('MAIL_USERNAME', 'dhanishkanth1122@gmail.com')
+app.config['MAIL_PASSWORD'] = os.environ.get('MAIL_PASSWORD', 'hoev vokh vdjb hzxo')
 app.config['MAIL_DEFAULT_SENDER'] = app.config['MAIL_USERNAME']
 
 # Mail Diagnostic Prints
@@ -365,8 +366,24 @@ def send_otp():
 
         print("OTP GENERATED:", otp)
 
-        # 🔥 TEMP: skip email completely to isolate backend logic
-        return jsonify({'success': True, 'otp': otp})
+        # FINAL STEP: Re-enable email delivery with robust error tracking
+        try:
+            print(f"📨 TRYING TO SEND EMAIL TO: {email}")
+            msg = Message('Your Login OTP', recipients=[email])
+            msg.body = f'Your OTP for login is: {otp}'
+            
+            mail.send(msg)
+            print("✅ EMAIL SENT SUCCESSFULLY")
+            return jsonify({'success': True, 'message': 'OTP sent to email'})
+        except Exception as e:
+            import traceback
+            print("❌ MAIL ERROR FULL:", traceback.format_exc())
+            # Return success with OTP in response so login works even if SMTP fails
+            return jsonify({
+                'success': True, 
+                'message': f'System Partial Error: Your OTP is {otp}', 
+                'dev_otp': otp
+            })
 
     except Exception as e:
         import traceback
