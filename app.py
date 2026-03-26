@@ -80,16 +80,17 @@ def submit_complaint():
         print(f"Error saving complaint: {e}")
         return jsonify({'success': False, 'message': 'Database Error'}), 500
     
-    # Send Confirmation Email (Async)
+    # Send Confirmation Email (Async via Thread)
     try:
         user = db.session.get(User, session['user_id'])
         if user and user.email:
-            msg = Message('Complaint Registered Successfully - National Portal', recipients=[user.email])
-            msg.html = render_template('email_confirmation.html', 
+            subject = 'Complaint Registered Successfully - National Portal'
+            html_content = render_template('email_confirmation.html', 
                                        category=new_complaint.category, 
                                        complaint_id=new_complaint.id)
             
-            email_thread = threading.Thread(target=send_async_email, args=(app, msg))
+            # Using threading to keep it non-blocking
+            email_thread = threading.Thread(target=send_brevo_email, args=(user.email, subject, html_content))
             email_thread.start()
             
     except Exception as e:
@@ -178,25 +179,31 @@ COMPLAINT_CATEGORIES = {
 def generate_otp():
     return ''.join(random.choices(string.digits, k=6))
 
-def send_otp_email(email, otp):
+def send_brevo_email(email, subject, html_content):
     url = "https://api.brevo.com/v3/smtp/email"
-
     headers = {
         "accept": "application/json",
         "api-key": os.environ.get("BREVO_API_KEY"),
         "content-type": "application/json"
     }
-
     data = {
         "sender": {"email": "dhanishkanth1122@gmail.com"},
         "to": [{"email": email}],
-        "subject": "Your Login OTP",
-        "htmlContent": f"<h2>Your OTP is: {otp}</h2>"
+        "subject": subject,
+        "htmlContent": html_content
     }
+    try:
+        response = requests.post(url, json=data, headers=headers)
+        print(f"BREVO RESPONSE [{response.status_code}]: {response.text}")
+        return response.status_code == 201
+    except Exception as e:
+        print(f"BREVO ERROR: {e}")
+        return False
 
-    response = requests.post(url, json=data, headers=headers)
-    print("BREVO RESPONSE:", response.status_code)
-    print("BREVO BODY:", response.text)
+def send_otp_email(email, otp):
+    subject = "Your Login OTP"
+    html_content = f"<h2>Your OTP is: {otp}</h2>"
+    send_brevo_email(email, subject, html_content)
 
 # Helper to flatten categories for easy lookup
 TOPIC_IMAGE_MAP = {}
@@ -241,23 +248,6 @@ def home():
     if 'user_id' in session:
         return redirect(url_for('dashboard'))
     return render_template('index.html')
-
-@app.route('/test-mail')
-def test_mail():
-    """Diagnostic route to test mail delivery."""
-    try:
-        recipient = app.config['MAIL_USERNAME']
-        print(f"📨 TRYING TO SEND TEST EMAIL TO: {recipient}")
-        msg = Message('Test Mail - National Portal', recipients=[recipient])
-        msg.body = "If you are reading this, your Render mail configuration is working perfectly!"
-        mail.send(msg)
-        print("✅ TEST EMAIL SENT")
-        return "Mail sent successfully! Check your inbox."
-    except Exception as e:
-        import traceback
-        error_msg = traceback.format_exc()
-        print(f"❌ TEST MAIL ERROR: {error_msg}")
-        return f"Mail failed: {str(e)}"
 
 @app.route('/dashboard')
 def dashboard():
@@ -593,30 +583,15 @@ def update_status(id):
     # Send Status Update Email
     try:
         if complaint.user and complaint.user.email:
-            msg = Message(f'Update on Complaint #{complaint.id}: {new_status}', recipients=[complaint.user.email])
-            
-            # Default Topic Image
+            subject = f'Update on Complaint #{complaint.id}: {new_status}'
             topic_image = TOPIC_IMAGE_MAP.get(complaint.topic, 'https://placehold.co/600x400?text=Grievance')
             
-            # Check for uploaded image
-            uploaded_file = request.files.get('status_image')
-            has_attachment = False
+            html_content = render_template('email_status_update.html', 
+                                         complaint=complaint,
+                                         topic_image=topic_image,
+                                         has_attachment=False)
             
-            if uploaded_file and uploaded_file.filename != '':
-                has_attachment = True
-                # Read file data to attach
-                file_data = uploaded_file.read()
-                filename = uploaded_file.filename
-                content_type = uploaded_file.content_type
-                
-                # Attach as inline image
-                msg.attach(filename, content_type, file_data, 'inline', headers={'Content-ID': '<status_image>'})
-
-            msg.html = render_template('email_status_update.html', 
-                                     complaint=complaint,
-                                     topic_image=topic_image,
-                                     has_attachment=has_attachment)
-            email_thread = threading.Thread(target=send_async_email, args=(app, msg))
+            email_thread = threading.Thread(target=send_brevo_email, args=(complaint.user.email, subject, html_content))
             email_thread.start()
     except Exception as e:
         print(f"Failed to send status email: {e}")
