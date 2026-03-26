@@ -25,8 +25,12 @@ app.config['MAIL_SERVER'] = 'smtp.gmail.com'
 app.config['MAIL_PORT'] = 587
 app.config['MAIL_USE_TLS'] = True
 app.config['MAIL_USERNAME'] = os.environ.get('MAIL_USERNAME', 'dhanishkanth1122@gmail.com') # Replace with your email
-app.config['MAIL_PASSWORD'] = os.environ.get('MAIL_PASSWORD', 'mjqw pqsi jmpz cfhm') # Replace with your App Password
+app.config['MAIL_PASSWORD'] = os.environ.get('MAIL_PASSWORD', 'hoev vokh vdjb hzxo') # Replace with your App Password
 app.config['MAIL_DEFAULT_SENDER'] = app.config['MAIL_USERNAME']
+
+# Mail Diagnostic Prints
+print(f"DEBUG MAIL_USERNAME: {app.config['MAIL_USERNAME']}")
+print(f"DEBUG MAIL_PASSWORD exists: {bool(app.config['MAIL_PASSWORD'])}")
 
 db = SQLAlchemy(app)
 mail = Mail(app)
@@ -235,20 +239,22 @@ def home():
         return redirect(url_for('dashboard'))
     return render_template('index.html')
 
-@app.route('/test-db')
-def test_db():
-    """Temporary route to verify DB is writable."""
+@app.route('/test-mail')
+def test_mail():
+    """Diagnostic route to test mail delivery."""
     try:
-        test_user = User(
-            aadhaar="123456789012", 
-            phone="9999999999", 
-            email="test@example.com"
-        )
-        db.session.add(test_user)
-        db.session.commit()
-        return f"User added! Total users now: {User.query.count()}"
+        recipient = app.config['MAIL_USERNAME']
+        print(f"📨 TRYING TO SEND TEST EMAIL TO: {recipient}")
+        msg = Message('Test Mail - National Portal', recipients=[recipient])
+        msg.body = "If you are reading this, your Render mail configuration is working perfectly!"
+        mail.send(msg)
+        print("✅ TEST EMAIL SENT")
+        return "Mail sent successfully! Check your inbox."
     except Exception as e:
-        return f"Database Error: {e}"
+        import traceback
+        error_msg = traceback.format_exc()
+        print(f"❌ TEST MAIL ERROR: {error_msg}")
+        return f"Mail failed: {str(e)}"
 
 @app.route('/dashboard')
 def dashboard():
@@ -355,8 +361,26 @@ def send_otp():
 
         print("OTP GENERATED:", otp)
 
-        # TEMP: skip email to avoid crash
-        return jsonify({'success': True, 'otp': otp})
+        # Email Block with verbose debugging
+        try:
+            print("🔥 ENTERED MAIL BLOCK")
+            print("EMAIL:", email)
+            msg = Message('Your Login OTP', recipients=[email])
+            msg.body = f'Your OTP for login is: {otp}'
+            
+            print("📨 TRYING TO SEND EMAIL...")
+            mail.send(msg)
+            print("✅ EMAIL SENT")
+            return jsonify({'success': True, 'message': 'OTP sent to email'})
+        except Exception as e:
+            import traceback
+            print("❌ MAIL ERROR FULL:", traceback.format_exc())
+            # Still return success with OTP for testing if mail fails
+            return jsonify({
+                'success': True, 
+                'message': f'System Partial Error: Your OTP is {otp}', 
+                'dev_otp': otp
+            })
 
     except Exception as e:
         import traceback
