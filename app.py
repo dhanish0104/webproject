@@ -431,16 +431,26 @@ def login():
     # Verify against Database
     user = User.query.filter_by(aadhaar=aadhaar, phone=phone, email=email).first()
     
-    if user and user.otp == entered_otp:
-        session['user_id'] = user.id
-        
-        # Clear OTP after successful login
-        user.otp = None 
-        db.session.commit()
-        
-        return jsonify({'success': True, 'redirect': url_for('dashboard')})
+    # Debug logs
+    if user:
+        print("DB OTP:", user.otp)
+        print("ENTERED OTP:", entered_otp)
     else:
-        return jsonify({'success': False, 'message': 'Invalid Credentials or OTP'}), 401
+        print("USER NOT FOUND IN DB")
+
+    # 🔧 Step 1: Convert both to string
+    if not user or str(user.otp) != str(entered_otp):
+        return jsonify({'success': False, 'message': 'Invalid OTP'}), 401
+
+    # 🔧 Step 3: Ensure session is set on success
+    session['user_id'] = user.id
+    
+    # Clear OTP after successful login
+    user.otp = None 
+    db.session.commit()
+    
+    # 🔧 Step 4: Return success
+    return jsonify({'success': True, 'redirect': url_for('dashboard')})
 
 
 
