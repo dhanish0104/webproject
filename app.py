@@ -1,11 +1,11 @@
 from flask import Flask, render_template, request, jsonify, session, redirect, url_for, abort
 from flask_sqlalchemy import SQLAlchemy
-from flask_mail import Mail, Message
 from datetime import datetime
 import random
 import string
 import os
 import threading
+import requests
 
 app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', 'your_secret_key_here')
@@ -20,21 +20,7 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['ADMIN_USERNAME'] = os.environ.get('ADMIN_USERNAME', 'admin')
 app.config['ADMIN_PASSWORD'] = os.environ.get('ADMIN_PASSWORD', 'admin123')
 
-# Mail Configuration
-app.config['MAIL_SERVER'] = 'smtp.gmail.com'
-app.config['MAIL_PORT'] = 587
-app.config['MAIL_USE_TLS'] = True
-app.config['MAIL_USE_SSL'] = False  # Explicitly false for port 587
-app.config['MAIL_USERNAME'] = os.environ.get('MAIL_USERNAME', 'dhanishkanth1122@gmail.com')
-app.config['MAIL_PASSWORD'] = os.environ.get('MAIL_PASSWORD', 'hoev vokh vdjb hzxo')
-app.config['MAIL_DEFAULT_SENDER'] = app.config['MAIL_USERNAME']
-
-# Mail Diagnostic Prints
-print(f"DEBUG MAIL_USERNAME: {app.config['MAIL_USERNAME']}")
-print(f"DEBUG MAIL_PASSWORD exists: {bool(app.config['MAIL_PASSWORD'])}")
-
 db = SQLAlchemy(app)
-mail = Mail(app)
 
 # --- Database Models ---
 class User(db.Model):
@@ -192,9 +178,24 @@ COMPLAINT_CATEGORIES = {
 def generate_otp():
     return ''.join(random.choices(string.digits, k=6))
 
-def send_async_email(app, msg):
-    with app.app_context():
-        mail.send(msg)
+def send_otp_email(email, otp):
+    url = "https://api.brevo.com/v3/smtp/email"
+
+    headers = {
+        "accept": "application/json",
+        "api-key": os.environ.get("BREVO_API_KEY"),
+        "content-type": "application/json"
+    }
+
+    data = {
+        "sender": {"email": "dhanishkanth1122@gmail.com"},
+        "to": [{"email": email}],
+        "subject": "Your Login OTP",
+        "htmlContent": f"<h2>Your OTP is: {otp}</h2>"
+    }
+
+    response = requests.post(url, json=data, headers=headers)
+    print("BREVO RESPONSE:", response.status_code, response.text)
 
 # Helper to flatten categories for easy lookup
 TOPIC_IMAGE_MAP = {}
@@ -366,19 +367,16 @@ def send_otp():
 
         print("OTP GENERATED:", otp)
 
-        # FINAL STEP: Re-enable email delivery with robust error tracking
+        # FINAL STEP: Send email via Brevo with robust error tracking
         try:
             print(f"📨 TRYING TO SEND EMAIL TO: {email}")
-            msg = Message('Your Login OTP', recipients=[email])
-            msg.body = f'Your OTP for login is: {otp}'
-            
-            mail.send(msg)
+            send_otp_email(email, otp)
             print("✅ EMAIL SENT SUCCESSFULLY")
-            return jsonify({'success': True, 'message': 'OTP sent to email'})
+            return jsonify({'success': True, 'message': 'OTP sent'})
         except Exception as e:
             import traceback
             print("❌ MAIL ERROR FULL:", traceback.format_exc())
-            # Return success with OTP in response so login works even if SMTP fails
+            # Return success with OTP in response so login works even if API fails
             return jsonify({
                 'success': True, 
                 'message': f'System Partial Error: Your OTP is {otp}', 

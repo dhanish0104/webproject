@@ -1,5 +1,5 @@
 flask
 flask-sqlalchemy
-flask-mail
+requests
 gunicorn
 email-validator
