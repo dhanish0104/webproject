@@ -264,7 +264,15 @@ def dashboard():
     if 'user_id' not in session:
         return redirect(url_for('home'))
     
-    user = User.query.get(session['user_id'])
+    user = User.query.get(session.get('user_id'))
+    
+    print("SESSION USER ID:", session.get('user_id'))
+    print("USER OBJECT:", user)
+    
+    if not user:
+        session.clear()
+        return redirect(url_for('home'))
+
     complaints = Complaint.query.filter_by(user_id=user.id).all()
     
     # Calculate Stats
