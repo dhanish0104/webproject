@@ -195,7 +195,8 @@ def send_otp_email(email, otp):
     }
 
     response = requests.post(url, json=data, headers=headers)
-    print("BREVO RESPONSE:", response.status_code, response.text)
+    print("BREVO RESPONSE:", response.status_code)
+    print("BREVO BODY:", response.text)
 
 # Helper to flatten categories for easy lookup
 TOPIC_IMAGE_MAP = {}
