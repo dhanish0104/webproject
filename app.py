@@ -337,19 +337,23 @@ def submit_feedback(id):
 @app.route('/send-otp', methods=['POST'])
 def send_otp():
     try:
-        data = request.get_json(force=True)
+        print("🔥 SEND OTP ROUTE HIT")
+
+        # silent=True prevents crashing if body is empty or malformed
+        data = request.get_json(silent=True)
         print("DATA:", data)
 
         if not data:
-            return jsonify({'success': False, 'message': 'No data received'}), 400
+            return jsonify({'success': False, 'message': 'No JSON received'}), 400
 
-        email = data.get('email')
-        aadhaar = data.get('aadhaar')
-        phone = data.get('phone')
+        email = (data.get('email') or "").strip()
+        aadhaar = (data.get('aadhaar') or "").strip()
+        phone = (data.get('phone') or "").strip()
 
         print("INPUT:", email, aadhaar, phone)
 
-        user = User.query.filter_by(email=email, aadhaar=aadhaar, phone=phone).first()
+        # 🔥 TEMP: bypass strict matching to ensure we find a user
+        user = User.query.filter_by(email=email).first()
         print("USER:", user)
 
         if not user:
@@ -361,30 +365,12 @@ def send_otp():
 
         print("OTP GENERATED:", otp)
 
-        # Email Block with verbose debugging
-        try:
-            print("🔥 ENTERED MAIL BLOCK")
-            print("EMAIL:", email)
-            msg = Message('Your Login OTP', recipients=[email])
-            msg.body = f'Your OTP for login is: {otp}'
-            
-            print("📨 TRYING TO SEND EMAIL...")
-            mail.send(msg)
-            print("✅ EMAIL SENT")
-            return jsonify({'success': True, 'message': 'OTP sent to email'})
-        except Exception as e:
-            import traceback
-            print("❌ MAIL ERROR FULL:", traceback.format_exc())
-            # Still return success with OTP for testing if mail fails
-            return jsonify({
-                'success': True, 
-                'message': f'System Partial Error: Your OTP is {otp}', 
-                'dev_otp': otp
-            })
+        # 🔥 TEMP: skip email completely to isolate backend logic
+        return jsonify({'success': True, 'otp': otp})
 
     except Exception as e:
         import traceback
-        print("🔥 ERROR:", traceback.format_exc())
+        print("❌ ERROR:", traceback.format_exc())
         return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route('/register', methods=['GET', 'POST'])

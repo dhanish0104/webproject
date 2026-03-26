@@ -41,27 +41,14 @@ async function sendOTP() {
     otpBtn.disabled = true;
 
     try {
-        let response = await fetch('/send-otp', {
+        const response = await fetch('/send-otp', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ email: email, aadhaar: aadhaar, phone: phone })
         });
 
-        // Use clone() to allow reading the body twice (once as JSON, once as text if needed)
-        let responseClone = response.clone();
-        let result;
-        try {
-            result = await response.json();
-        } catch (jsonError) {
-            let errorText = await responseClone.text();
-            console.error('JSON Parse Error:', jsonError);
-            console.error('Response Status:', response.status);
-            console.error('Response Text:', errorText);
-            showToast("Server returned an invalid response. Check console for details.", "error");
-            otpBtn.innerText = "Send OTP";
-            otpBtn.disabled = false;
-            return;
-        }
+        const result = await response.json();
+        console.log("OTP Response:", result);
 
         if (result.success) {
             // ... (rest of the success handling remains the same)
