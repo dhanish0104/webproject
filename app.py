@@ -338,7 +338,7 @@ def submit_feedback(id):
 @app.route('/send-otp', methods=['POST'])
 def send_otp():
     try:
-        print("🔥 SEND OTP ROUTE HIT")
+        print("SEND OTP ROUTE HIT")
 
         # silent=True prevents crashing if body is empty or malformed
         data = request.get_json(silent=True)
@@ -353,7 +353,7 @@ def send_otp():
 
         print("INPUT:", email, aadhaar, phone)
 
-        # 🔥 TEMP: bypass strict matching to ensure we find a user
+        #  TEMP: bypass strict matching to ensure we find a user
         user = User.query.filter_by(email=email).first()
         print("USER:", user)
 
@@ -368,13 +368,13 @@ def send_otp():
 
         # FINAL STEP: Send email via Brevo with robust error tracking
         try:
-            print(f"📨 TRYING TO SEND EMAIL TO: {email}")
+            print(f"TRYING TO SEND EMAIL TO: {email}")
             send_otp_email(email, otp)
-            print("✅ EMAIL SENT SUCCESSFULLY")
+            print("EMAIL SENT SUCCESSFULLY")
             return jsonify({'success': True, 'message': 'OTP sent'})
         except Exception as e:
             import traceback
-            print("❌ MAIL ERROR FULL:", traceback.format_exc())
+            print("MAIL ERROR FULL:", traceback.format_exc())
             # Return success with OTP in response so login works even if API fails
             return jsonify({
                 'success': True, 
@@ -384,7 +384,7 @@ def send_otp():
 
     except Exception as e:
         import traceback
-        print("❌ ERROR:", traceback.format_exc())
+        print("ERROR:", traceback.format_exc())
         return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route('/register', methods=['GET', 'POST'])
@@ -428,18 +428,18 @@ def login():
     else:
         print("USER NOT FOUND IN DB")
 
-    # 🔧 Step 1: Convert both to string
+    #  Step 1: Convert both to string
     if not user or str(user.otp) != str(entered_otp):
         return jsonify({'success': False, 'message': 'Invalid OTP'}), 401
 
-    # 🔧 Step 3: Ensure session is set on success
+    #  Step 3: Ensure session is set on success
     session['user_id'] = user.id
     
     # Clear OTP after successful login
     user.otp = None 
     db.session.commit()
     
-    # 🔧 Step 4: Return success
+    #  Step 4: Return success
     return jsonify({'success': True, 'redirect': url_for('dashboard')})
 
 

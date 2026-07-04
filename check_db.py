@@ -1,7 +1,8 @@
 import sqlite3
 import os
 
-db_path = os.path.join('instance', 'database_v2.db')
+# Database path logic matching app.py
+db_path = '/data/database_v2.db' if os.path.exists('/data') else 'database_v2.db'
 
 if os.path.exists(db_path):
     conn = sqlite3.connect(db_path)
