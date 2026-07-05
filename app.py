@@ -1,103 +1,30 @@
 from flask import Flask, render_template, request, jsonify, session, redirect, url_for, abort
-from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime
+from types import SimpleNamespace
 import random
 import string
 import os
 import threading
 import requests
+from pymongo import MongoClient, ASCENDING, DESCENDING, ReturnDocument
+from pymongo.errors import PyMongoError
 
 app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', 'your_secret_key_here')
 
-# Database Configuration
-# Using Render's persistent disk path (/data) with local fallback
-db_path = '/data/database_v2.db' if os.path.exists('/data') else 'database_v2.db'
-app.config['SQLALCHEMY_DATABASE_URI'] = f"sqlite:///{db_path}"
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+# MongoDB Configuration
+mongo_uri = os.environ.get('MONGO_URI', 'mongodb://localhost:27017/government_complaint_portal')
+mongo_db_name = os.environ.get('MONGO_DB_NAME', 'government_complaint_portal')
+mongo_client = MongoClient(mongo_uri, serverSelectionTimeoutMS=5000)
+mongo_db = mongo_client[mongo_db_name]
+users_col = mongo_db.users
+complaints_col = mongo_db.complaints
+history_col = mongo_db.complaint_history
+counters_col = mongo_db.counters
 
 # Admin Credentials
 app.config['ADMIN_USERNAME'] = os.environ.get('ADMIN_USERNAME', 'admin')
 app.config['ADMIN_PASSWORD'] = os.environ.get('ADMIN_PASSWORD', 'admin123')
-
-db = SQLAlchemy(app)
-
-# --- Database Models ---
-class User(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    aadhaar = db.Column(db.String(12), unique=True, nullable=False)
-    phone = db.Column(db.String(10), unique=True, nullable=False)
-    email = db.Column(db.String(120), unique=True, nullable=False)
-    otp = db.Column(db.String(6), nullable=True) # Store OTP in DB
-
-class Complaint(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    category = db.Column(db.String(100), nullable=False)
-    topic = db.Column(db.String(100), nullable=False) # Specific issue (e.g. Potholes)
-    state = db.Column(db.String(50), nullable=True)
-    district = db.Column(db.String(50), nullable=True)
-    area = db.Column(db.String(100), nullable=True)
-    description = db.Column(db.Text, nullable=True) # User's details
-    admin_comment = db.Column(db.Text, nullable=True) # Actual Admin Response
-    user_feedback = db.Column(db.Text, nullable=True) # Feedback from user on resolved issue
-    status = db.Column(db.String(20), default='Pending')
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
-    user = db.relationship('User', backref=db.backref('complaints', lazy=True))
-    history = db.relationship('ComplaintHistory', backref='complaint', lazy=True, order_by="desc(ComplaintHistory.timestamp)")
-
-class ComplaintHistory(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    complaint_id = db.Column(db.Integer, db.ForeignKey('complaint.id'), nullable=False)
-    status = db.Column(db.String(50))
-    comment = db.Column(db.Text)
-    timestamp = db.Column(db.DateTime, default=datetime.utcnow)
-
-# ... (Categories Data) ...
-
-# ... (Routes) ...
-
-@app.route('/submit-complaint', methods=['POST'])
-def submit_complaint():
-    if 'user_id' not in session:
-        return jsonify({'success': False, 'message': 'Unauthorized'}), 401
-
-    data = request.json
-    try:
-        new_complaint = Complaint(
-            category=data.get('category'),
-            topic=data.get('topic'), # Capture the specific topic
-            state=data.get('state'),
-            district=data.get('district'),
-            area=data.get('area'),
-            description=data.get('description'),
-            # We treat 'solution' from form as just part of description or ignore it to avoid confusion 
-            # for now, let's just store user details in description.
-            user_id=session['user_id']
-        )
-        db.session.add(new_complaint)
-        db.session.commit()
-    except Exception as e:
-        print(f"Error saving complaint: {e}")
-        return jsonify({'success': False, 'message': 'Database Error'}), 500
-    
-    # Send Confirmation Email (Async via Thread)
-    try:
-        user = db.session.get(User, session['user_id'])
-        if user and user.email:
-            subject = 'Complaint Registered Successfully - National Portal'
-            html_content = render_template('email_confirmation.html', 
-                                       category=new_complaint.category, 
-                                       complaint_id=new_complaint.id)
-            
-            # Using threading to keep it non-blocking
-            email_thread = threading.Thread(target=send_brevo_email, args=(user.email, subject, html_content))
-            email_thread.start()
-            
-    except Exception as e:
-        print(f"Failed to initiate confirmation email: {e}")
-
-    return jsonify({'success': True, 'message': 'Complaint submitted successfully. Confirmation email sent.'})
-
 # --- Data Structure for Categories and Topics ---
 COMPLAINT_CATEGORIES = {
     'Infrastructure': [
@@ -179,15 +106,21 @@ COMPLAINT_CATEGORIES = {
 def generate_otp():
     return ''.join(random.choices(string.digits, k=6))
 
+
 def send_brevo_email(email, subject, html_content):
+    api_key = os.environ.get("BREVO_API_KEY")
+    if not api_key:
+        print("BREVO ERROR: BREVO_API_KEY is not configured")
+        return False
+
     url = "https://api.brevo.com/v3/smtp/email"
     headers = {
         "accept": "application/json",
-        "api-key": os.environ.get("BREVO_API_KEY"),
+        "api-key": api_key,
         "content-type": "application/json"
     }
     data = {
-        "sender": {"email": "dhanishkanth1122@gmail.com"},
+        "sender": {"email": os.environ.get("BREVO_SENDER_EMAIL", "dhanishkanth1122@gmail.com")},
         "to": [{"email": email}],
         "subject": subject,
         "htmlContent": html_content
@@ -200,10 +133,110 @@ def send_brevo_email(email, subject, html_content):
         print(f"BREVO ERROR: {e}")
         return False
 
+
 def send_otp_email(email, otp):
     subject = "Your Login OTP"
     html_content = f"<h2>Your OTP is: {otp}</h2>"
-    send_brevo_email(email, subject, html_content)
+    return send_brevo_email(email, subject, html_content)
+
+
+class AttrDict(SimpleNamespace):
+    def get(self, key, default=None):
+        return getattr(self, key, default)
+
+
+def to_obj(doc):
+    if not doc:
+        return None
+    data = dict(doc)
+    data['mongo_id'] = str(data.pop('_id', ''))
+    if 'email' in data and not data.get('username'):
+        data['username'] = data['email'].split('@')[0]
+    return AttrDict(**data)
+
+
+def next_sequence(name):
+    counter = counters_col.find_one_and_update(
+        {'_id': name},
+        {'$inc': {'value': 1}},
+        upsert=True,
+        return_document=ReturnDocument.AFTER
+    )
+    return counter['value']
+
+
+def get_user_by_id(user_id):
+    try:
+        return to_obj(users_col.find_one({'id': int(user_id)}))
+    except (TypeError, ValueError):
+        return None
+
+
+def get_user_doc_by_id(user_id):
+    try:
+        return users_col.find_one({'id': int(user_id)})
+    except (TypeError, ValueError):
+        return None
+
+
+def get_complaint_doc(complaint_id):
+    try:
+        return complaints_col.find_one({'id': int(complaint_id)})
+    except (TypeError, ValueError):
+        return None
+
+
+def complaint_with_related(doc, include_history=True):
+    complaint = to_obj(doc)
+    if not complaint:
+        return None
+
+    complaint.user = get_user_by_id(getattr(complaint, 'user_id', None))
+    if include_history:
+        events = history_col.find({'complaint_id': complaint.id}).sort('timestamp', DESCENDING)
+        complaint.history = [to_obj(event) for event in events]
+    else:
+        complaint.history = []
+    return complaint
+
+
+def seed_data():
+    """Seeds MongoDB with sample users if the users collection is empty."""
+    if users_col.count_documents({}) > 0:
+        return
+
+    print("Seeding synthetic MongoDB users...")
+    sample_users = [
+        {"aadhaar": "111122223333", "phone": "9876543210", "email": "user1@example.com"},
+        {"aadhaar": "444455556666", "phone": "9123456780", "email": "user2@example.com"},
+        {"aadhaar": "777788889999", "phone": "9988776655", "email": "dhanishkanth1122@gmail.com"}
+    ]
+    for user in sample_users:
+        user['id'] = next_sequence('users')
+        user['username'] = user['email'].split('@')[0]
+        user['otp'] = None
+        user['created_at'] = datetime.utcnow()
+    users_col.insert_many(sample_users)
+    print("MongoDB seeding complete.")
+
+
+def init_mongo():
+    users_col.create_index([('id', ASCENDING)], unique=True)
+    users_col.create_index([('aadhaar', ASCENDING)], unique=True)
+    users_col.create_index([('phone', ASCENDING)], unique=True)
+    users_col.create_index([('email', ASCENDING)], unique=True)
+    complaints_col.create_index([('id', ASCENDING)], unique=True)
+    complaints_col.create_index([('user_id', ASCENDING)])
+    complaints_col.create_index([('status', ASCENDING)])
+    history_col.create_index([('complaint_id', ASCENDING)])
+    seed_data()
+
+
+try:
+    init_mongo()
+except PyMongoError as e:
+    print(f"MongoDB initialization skipped: {e}")
+
 
 # Helper to flatten categories for easy lookup
 TOPIC_IMAGE_MAP = {}
@@ -211,77 +244,56 @@ for cat, topics in COMPLAINT_CATEGORIES.items():
     for topic in topics:
         TOPIC_IMAGE_MAP[topic['name']] = topic['image']
 
+
 @app.context_processor
 def utility_processor():
     def get_topic_image(topic_name):
         return TOPIC_IMAGE_MAP.get(topic_name, 'https://placehold.co/600x400?text=Grievance')
     return dict(get_topic_image=get_topic_image)
 
-def seed_data():
-    """Seeds the database with synthetic users if empty."""
-    if User.query.first() is None:
-        print("Seeding synthetic users...")
-        users = [
-            User(aadhaar="111122223333", phone="9876543210", email="user1@example.com"),
-            User(aadhaar="444455556666", phone="9123456780", email="user2@example.com"),
-            User(aadhaar="777788889999", phone="9988776655", email="dhanishkanth1122@gmail.com") # Custom one
-        ]
-        db.session.add_all(users)
-        db.session.commit()
-        print("Seeding complete.")
-
-with app.app_context():
-    db.create_all()
-    if User.query.count() == 0:
-        seed_data()
 
 # --- Routes ---
-
 @app.route('/')
 def home():
-    # Diagnostic print for logs
     try:
-        print(f"Home route accessed. DB count: {User.query.count()}")
+        print(f"Home route accessed. User count: {users_col.count_documents({})}")
     except Exception as e:
-        print(f"DB Error on home: {e}")
+        print(f"MongoDB Error on home: {e}")
 
     if 'user_id' in session:
         return redirect(url_for('dashboard'))
     return render_template('index.html')
 
+
 @app.route('/dashboard')
 def dashboard():
     if 'user_id' not in session:
         return redirect(url_for('home'))
-    
-    user = User.query.get(session.get('user_id'))
-    
+
+    user = get_user_by_id(session.get('user_id'))
     print("SESSION USER ID:", session.get('user_id'))
     print("USER OBJECT:", user)
-    
+
     if not user:
         session.clear()
         return redirect(url_for('home'))
 
-    complaints = Complaint.query.filter_by(user_id=user.id).all()
-    
-    # Calculate Stats
+    complaint_docs = list(complaints_col.find({'user_id': user.id}).sort('id', ASCENDING))
+    complaints = [complaint_with_related(doc, include_history=False) for doc in complaint_docs]
+
     total_complaints = len(complaints)
     pending_count = sum(1 for c in complaints if c.status == 'Pending')
     in_progress_count = sum(1 for c in complaints if c.status == 'In Progress')
     resolved_count = sum(1 for c in complaints if c.status == 'Resolved')
-    
-    # Get recent complaints (last 5, newer first)
-    recent_complaints = complaints[::-1][:5]
-    
-    # Get Success Stories (Recent Resolved Complaints)
-    all_resolved = Complaint.query.filter_by(status='Resolved').order_by(Complaint.id.desc()).all()
-    success_stories = all_resolved[:6]
-    
+    recent_complaints = list(reversed(complaints))[:5]
+
+    success_docs = complaints_col.find({'status': 'Resolved'}).sort('id', DESCENDING).limit(6)
+    success_stories = [complaint_with_related(doc, include_history=False) for doc in success_docs]
+
     print(f"DIAGNOSTIC: User {user.id} has {resolved_count} resolved complaints.")
-    print(f"DIAGNOSTIC: Total resolved in DB (success_stories): {len(all_resolved)}")
-    
-    return render_template('dashboard.html', 
+    print(f"DIAGNOSTIC: Total resolved in DB (success_stories): {complaints_col.count_documents({'status': 'Resolved'})}")
+
+    return render_template('dashboard.html',
                          user=user,
                          total_complaints=total_complaints,
                          pending_count=pending_count,
@@ -290,24 +302,24 @@ def dashboard():
                          recent_complaints=recent_complaints,
                          success_stories=success_stories)
 
+
 @app.route('/raise-complaint')
 def raise_complaint():
     if 'user_id' not in session:
         return redirect(url_for('home'))
-    user = User.query.get(session['user_id'])
+    user = get_user_by_id(session['user_id'])
     return render_template('raise_complaint.html', user=user)
+
 
 @app.route('/category/<category_name>')
 def category_complaints(category_name):
     if 'user_id' not in session:
         return redirect(url_for('home'))
-    
-    user = User.query.get(session['user_id'])
-    
-    # Get topics for this category, defaulting to empty list if not found
+
+    user = get_user_by_id(session['user_id'])
     topics = COMPLAINT_CATEGORIES.get(category_name, [])
-    
     return render_template('category_complaints.html', user=user, category=category_name, topics=topics)
+
 
 @app.route('/complaint')
 def complaint():
@@ -315,32 +327,72 @@ def complaint():
         return redirect(url_for('home'))
     return render_template('complaint.html')
 
+
+@app.route('/submit-complaint', methods=['POST'])
+def submit_complaint():
+    if 'user_id' not in session:
+        return jsonify({'success': False, 'message': 'Unauthorized'}), 401
+
+    data = request.get_json(silent=True) or {}
+    try:
+        new_complaint = {
+            'id': next_sequence('complaints'),
+            'category': data.get('category'),
+            'topic': data.get('topic'),
+            'state': data.get('state'),
+            'district': data.get('district'),
+            'area': data.get('area'),
+            'description': data.get('description'),
+            'admin_comment': None,
+            'user_feedback': None,
+            'status': 'Pending',
+            'user_id': int(session['user_id']),
+            'created_at': datetime.utcnow(),
+            'updated_at': datetime.utcnow()
+        }
+        complaints_col.insert_one(new_complaint)
+    except Exception as e:
+        print(f"Error saving complaint: {e}")
+        return jsonify({'success': False, 'message': 'Database Error'}), 500
+
+    try:
+        user = get_user_by_id(session['user_id'])
+        if user and user.email:
+            subject = 'Complaint Registered Successfully - National Portal'
+            html_content = render_template('email_confirmation.html',
+                                       category=new_complaint['category'],
+                                       complaint_id=new_complaint['id'])
+            email_thread = threading.Thread(target=send_brevo_email, args=(user.email, subject, html_content))
+            email_thread.start()
+    except Exception as e:
+        print(f"Failed to initiate confirmation email: {e}")
+
+    return jsonify({'success': True, 'message': 'Complaint submitted successfully. Confirmation email sent.'})
+
+
 @app.route('/submit-feedback/<int:id>', methods=['POST'])
 def submit_feedback(id):
     if 'user_id' not in session:
         return jsonify({'success': False, 'message': 'Unauthorized'}), 401
-    
-    data = request.json
+
+    data = request.get_json(silent=True) or {}
     feedback = data.get('feedback')
-    
-    complaint = db.session.get(Complaint, id)
-    if not complaint or complaint.user_id != session['user_id']:
+    complaint_doc = get_complaint_doc(id)
+
+    if not complaint_doc or complaint_doc.get('user_id') != int(session['user_id']):
         return jsonify({'success': False, 'message': 'Complaint not found'}), 404
-        
-    if complaint.status != 'Resolved':
+
+    if complaint_doc.get('status') != 'Resolved':
         return jsonify({'success': False, 'message': 'Can only give feedback on resolved complaints'}), 400
-        
-    complaint.user_feedback = feedback
-    db.session.commit()
-    
+
+    complaints_col.update_one({'id': id}, {'$set': {'user_feedback': feedback, 'updated_at': datetime.utcnow()}})
     return jsonify({'success': True, 'message': 'Thank you for your feedback!'})
+
 
 @app.route('/send-otp', methods=['POST'])
 def send_otp():
     try:
         print("SEND OTP ROUTE HIT")
-
-        # silent=True prevents crashing if body is empty or malformed
         data = request.get_json(silent=True)
         print("DATA:", data)
 
@@ -350,35 +402,39 @@ def send_otp():
         email = (data.get('email') or "").strip()
         aadhaar = (data.get('aadhaar') or "").strip()
         phone = (data.get('phone') or "").strip()
-
         print("INPUT:", email, aadhaar, phone)
 
-        #  TEMP: bypass strict matching to ensure we find a user
-        user = User.query.filter_by(email=email).first()
+        user = users_col.find_one({'email': email, 'aadhaar': aadhaar, 'phone': phone})
         print("USER:", user)
 
         if not user:
-            return jsonify({'success': False, 'message': 'User not found'}), 404
+            return jsonify({
+                'success': False,
+                'message': 'User not found. Please register or enter the exact Aadhaar, phone, and email used during registration.'
+            }), 404
 
         otp = generate_otp()
-        user.otp = otp
-        db.session.commit()
-
+        users_col.update_one({'id': user['id']}, {'$set': {'otp': otp}})
         print("OTP GENERATED:", otp)
 
-        # FINAL STEP: Send email via Brevo with robust error tracking
         try:
             print(f"TRYING TO SEND EMAIL TO: {email}")
-            send_otp_email(email, otp)
-            print("EMAIL SENT SUCCESSFULLY")
-            return jsonify({'success': True, 'message': 'OTP sent'})
-        except Exception as e:
+            if send_otp_email(email, otp):
+                print("EMAIL SENT SUCCESSFULLY")
+                return jsonify({'success': True, 'message': 'OTP sent'})
+
+            print("EMAIL SEND FAILED")
+            return jsonify({
+                'success': True,
+                'message': f'Email service unavailable. Your OTP is {otp}',
+                'dev_otp': otp
+            })
+        except Exception:
             import traceback
             print("MAIL ERROR FULL:", traceback.format_exc())
-            # Return success with OTP in response so login works even if API fails
             return jsonify({
-                'success': True, 
-                'message': f'System Partial Error: Your OTP is {otp}', 
+                'success': True,
+                'message': f'System Partial Error: Your OTP is {otp}',
                 'dev_otp': otp
             })
 
@@ -387,61 +443,58 @@ def send_otp():
         print("ERROR:", traceback.format_exc())
         return jsonify({'success': False, 'error': str(e)}), 500
 
+
 @app.route('/register', methods=['GET', 'POST'])
 def register():
     if request.method == 'POST':
-        aadhaar = request.form.get('aadhaar')
-        phone = request.form.get('phone')
-        email = request.form.get('email')
+        aadhaar = (request.form.get('aadhaar') or '').strip()
+        phone = (request.form.get('phone') or '').strip()
+        email = (request.form.get('email') or '').strip()
 
-        # Check if user already exists
-        user = User.query.filter((User.aadhaar == aadhaar) | (User.phone == phone) | (User.email == email)).first()
+        user = users_col.find_one({'$or': [{'aadhaar': aadhaar}, {'phone': phone}, {'email': email}]})
         if user:
             return render_template('register.html', message="User already exists with these details!")
 
-        new_user = User(aadhaar=aadhaar, phone=phone, email=email)
-        db.session.add(new_user)
-        db.session.commit()
-
+        new_user = {
+            'id': next_sequence('users'),
+            'aadhaar': aadhaar,
+            'phone': phone,
+            'email': email,
+            'username': email.split('@')[0],
+            'otp': None,
+            'created_at': datetime.utcnow()
+        }
+        users_col.insert_one(new_user)
         return render_template('register.html', message="Registration Successful! You can now Login.")
 
     return render_template('register.html')
 
+
 @app.route('/login', methods=['POST'])
 def login():
-    data = request.json
-    entered_otp = data.get('otp')
-    aadhaar = data.get('aadhaar')
-    phone = data.get('phone')
-    email = data.get('email')
+    data = request.get_json(silent=True) or {}
+    entered_otp = (data.get('otp') or "").strip()
+    aadhaar = (data.get('aadhaar') or "").strip()
+    phone = (data.get('phone') or "").strip()
+    email = (data.get('email') or "").strip()
 
     if not (aadhaar and phone and email and entered_otp):
          return jsonify({'success': False, 'message': 'All fields are required'}), 400
 
-    # Verify against Database
-    user = User.query.filter_by(aadhaar=aadhaar, phone=phone, email=email).first()
-    
-    # Debug logs
+    user = users_col.find_one({'aadhaar': aadhaar, 'phone': phone, 'email': email})
+
     if user:
-        print("DB OTP:", user.otp)
+        print("DB OTP:", user.get('otp'))
         print("ENTERED OTP:", entered_otp)
     else:
         print("USER NOT FOUND IN DB")
 
-    #  Step 1: Convert both to string
-    if not user or str(user.otp) != str(entered_otp):
+    if not user or str(user.get('otp')) != str(entered_otp):
         return jsonify({'success': False, 'message': 'Invalid OTP'}), 401
 
-    #  Step 3: Ensure session is set on success
-    session['user_id'] = user.id
-    
-    # Clear OTP after successful login
-    user.otp = None 
-    db.session.commit()
-    
-    #  Step 4: Return success
+    session['user_id'] = user['id']
+    users_col.update_one({'id': user['id']}, {'$set': {'otp': None}})
     return jsonify({'success': True, 'redirect': url_for('dashboard')})
-
 
 
 @app.route('/logout')
@@ -449,74 +502,75 @@ def logout():
     session.clear()
     return redirect(url_for('home'))
 
+
 @app.route('/profile')
 def profile():
     if 'user_id' not in session:
         return redirect(url_for('home'))
-    user = User.query.get(session['user_id'])
+    user = get_user_by_id(session['user_id'])
     return render_template('profile.html', user=user)
+
 
 @app.route('/contact')
 def contact():
-    # Allow access even without login? Assuming login required for consistency with menu
     if 'user_id' not in session:
-        return redirect(url_for('home')) 
+        return redirect(url_for('home'))
     return render_template('contact.html')
+
 
 @app.route('/my-complaints')
 def my_complaints():
     if 'user_id' not in session:
         return redirect(url_for('home'))
-        
-    user = User.query.get(session['user_id'])
-    # Access complaints via relationship (reverse relation defined in model)
-    # The backref in model is 'complaints', so user.complaints gives list
-    return render_template('my_complaints.html', complaints=user.complaints)
+
+    user_id = int(session['user_id'])
+    complaint_docs = complaints_col.find({'user_id': user_id}).sort('id', DESCENDING)
+    complaints = [complaint_with_related(doc, include_history=False) for doc in complaint_docs]
+    return render_template('my_complaints.html', complaints=complaints)
+
 
 # --- Admin Routes ---
-
 @app.route('/admin', methods=['GET', 'POST'])
 def admin_login():
     if request.method == 'POST':
         username = request.form.get('username')
         password = request.form.get('password')
-        
+
         if username == app.config['ADMIN_USERNAME'] and password == app.config['ADMIN_PASSWORD']:
             session['admin_logged_in'] = True
             return redirect(url_for('admin_dashboard'))
-        else:
-            return render_template('admin_login.html', error="Invalid Credentials")
-            
+        return render_template('admin_login.html', error="Invalid Credentials")
+
     return render_template('admin_login.html')
+
 
 @app.route('/admin/dashboard')
 def admin_dashboard():
     if not session.get('admin_logged_in'):
         return redirect(url_for('admin_login'))
-    
-    # Calculate Statistics
-    total_complaints = Complaint.query.count()
-    pending_complaints = Complaint.query.filter_by(status='Pending').count()
-    in_progress_complaints = Complaint.query.filter_by(status='In Progress').count()
-    resolved_complaints = Complaint.query.filter_by(status='Resolved').count()
-    recent_complaints = Complaint.query.order_by(Complaint.id.desc()).limit(5).all()
-    
+
+    total_complaints = complaints_col.count_documents({})
+    pending_complaints = complaints_col.count_documents({'status': 'Pending'})
+    in_progress_complaints = complaints_col.count_documents({'status': 'In Progress'})
+    resolved_complaints = complaints_col.count_documents({'status': 'Resolved'})
+    recent_docs = complaints_col.find({}).sort('id', DESCENDING).limit(5)
+    recent_complaints = [complaint_with_related(doc, include_history=False) for doc in recent_docs]
+
     stats = {
         'total': total_complaints,
         'pending': pending_complaints,
         'in_progress': in_progress_complaints,
         'resolved': resolved_complaints
     }
-
     return render_template('admin_dashboard.html', stats=stats, recent_complaints=recent_complaints, active_page='dashboard')
+
 
 @app.route('/admin/complaints')
 def admin_complaints():
     if not session.get('admin_logged_in'):
         return redirect(url_for('admin_login'))
-        
+
     status_filter = request.args.get('status')
-    
     active_page = 'all_complaints'
     if status_filter == 'Pending':
         active_page = 'pending'
@@ -524,84 +578,83 @@ def admin_complaints():
         active_page = 'in_progress'
     elif status_filter == 'Resolved':
         active_page = 'resolved'
-    
-    if status_filter:
-        complaints = Complaint.query.filter_by(status=status_filter).order_by(Complaint.id.desc()).all()
-    else:
-        complaints = Complaint.query.order_by(Complaint.id.desc()).all()
-        
+
+    query = {'status': status_filter} if status_filter else {}
+    complaint_docs = complaints_col.find(query).sort('id', DESCENDING)
+    complaints = [complaint_with_related(doc, include_history=False) for doc in complaint_docs]
     return render_template('admin_complaints.html', complaints=complaints, current_filter=status_filter, active_page=active_page)
+
 
 @app.route('/admin/users')
 def admin_users():
     if not session.get('admin_logged_in'):
         return redirect(url_for('admin_login'))
-    
-    users = User.query.all()
+
+    users = [to_obj(user) for user in users_col.find({}).sort('id', ASCENDING)]
     return render_template('admin_users.html', users=users, active_page='users')
+
 
 @app.route('/admin/complaint/<int:id>')
 def admin_complaint_details(id):
     if not session.get('admin_logged_in'):
         return redirect(url_for('admin_login'))
-    
-    complaint = db.session.get(Complaint, id)
+
+    complaint = complaint_with_related(get_complaint_doc(id), include_history=True)
     if not complaint:
         abort(404)
-        
     return render_template('admin_complaint_details.html', complaint=complaint, active_page='all_complaints')
+
 
 @app.route('/admin/update-status/<int:id>', methods=['POST'])
 def update_status(id):
     if not session.get('admin_logged_in'):
         return redirect(url_for('admin_login'))
-    
-    complaint = db.session.get(Complaint, id)
-    if not complaint:
+
+    complaint_doc = get_complaint_doc(id)
+    if not complaint_doc:
         abort(404)
-        
+
     new_status = request.form.get('status')
     admin_comment = request.form.get('admin_comment')
-    
-    complaint.status = new_status
+    update_fields = {'status': new_status, 'updated_at': datetime.utcnow()}
     if admin_comment:
-        complaint.admin_comment = admin_comment
-        
-    # Create History Record
+        update_fields['admin_comment'] = admin_comment
+
+    complaints_col.update_one({'id': id}, {'$set': update_fields})
+
     try:
-        history_entry = ComplaintHistory(
-            complaint_id=complaint.id,
-            status=new_status,
-            comment=admin_comment
-        )
-        db.session.add(history_entry)
+        history_col.insert_one({
+            'id': next_sequence('complaint_history'),
+            'complaint_id': id,
+            'status': new_status,
+            'comment': admin_comment,
+            'timestamp': datetime.utcnow()
+        })
     except Exception as e:
         print(f"Error creating history: {e}")
 
-    db.session.commit()
-    
-    # Send Status Update Email
     try:
-        if complaint.user and complaint.user.email:
+        complaint = complaint_with_related(get_complaint_doc(id), include_history=False)
+        if complaint and complaint.user and complaint.user.email:
             subject = f'Update on Complaint #{complaint.id}: {new_status}'
             topic_image = TOPIC_IMAGE_MAP.get(complaint.topic, 'https://placehold.co/600x400?text=Grievance')
-            
-            html_content = render_template('email_status_update.html', 
+            html_content = render_template('email_status_update.html',
                                          complaint=complaint,
                                          topic_image=topic_image,
                                          has_attachment=False)
-            
             email_thread = threading.Thread(target=send_brevo_email, args=(complaint.user.email, subject, html_content))
             email_thread.start()
     except Exception as e:
         print(f"Failed to send status email: {e}")
-        
+
     return redirect(url_for('admin_dashboard'))
+
 
 @app.route('/admin/logout')
 def admin_logout():
     session.pop('admin_logged_in', None)
     return redirect(url_for('admin_login'))
+
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0')

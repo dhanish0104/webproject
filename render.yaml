@@ -1,11 +1,22 @@
 services:
   - type: web
-    name: flask-app
+    name: government-complaint-portal
     env: python
+    plan: free
     buildCommand: pip install -r requirements.txt
     startCommand: gunicorn app:app --bind 0.0.0.0:$PORT
-    plan: free
-    disk:
-      name: data
-      mountPath: /data
-      sizeGB: 1
+    envVars:
+      - key: SECRET_KEY
+        generateValue: true
+      - key: MONGO_URI
+        sync: false
+      - key: MONGO_DB_NAME
+        value: government_complaint_portal
+      - key: BREVO_API_KEY
+        sync: false
+      - key: BREVO_SENDER_EMAIL
+        sync: false
+      - key: ADMIN_USERNAME
+        sync: false
+      - key: ADMIN_PASSWORD
+        sync: false

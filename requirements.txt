@@ -1,5 +1,6 @@
 flask
-flask-sqlalchemy
+pymongo[srv]
 requests
 gunicorn
 email-validator
+serverless-wsgi
