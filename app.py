@@ -13,7 +13,9 @@ app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', 'your_secret_key_here')
 
 # MongoDB Configuration
-mongo_uri = os.environ.get('MONGO_URI', 'mongodb://localhost:27017/government_complaint_portal')
+# On Render: set MONGO_URI in the Environment Variables dashboard.
+# For local development: defaults to localhost if MONGO_URI is not set.
+mongo_uri = os.environ['MONGO_URI'] if 'MONGO_URI' in os.environ else 'mongodb://localhost:27017'
 mongo_db_name = os.environ.get('MONGO_DB_NAME', 'government_complaint_portal')
 mongo_client = MongoClient(mongo_uri, serverSelectionTimeoutMS=5000)
 mongo_db = mongo_client[mongo_db_name]
