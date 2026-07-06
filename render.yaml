@@ -9,7 +9,7 @@ services:
       - key: SECRET_KEY
         generateValue: true
       - key: MONGO_URI
-        value: mongodb+srv://dhanishkanthsb2024_db_user:ea2MvwcPJzy6VN3D@cluster0.yxu09nb.mongodb.net/?appName=Cluster0
+        sync: false
       - key: MONGO_DB_NAME
         value: government_complaint_portal
       - key: BREVO_API_KEY
