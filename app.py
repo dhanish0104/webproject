@@ -24,6 +24,25 @@ complaints_col = mongo_db.complaints
 history_col = mongo_db.complaint_history
 counters_col = mongo_db.counters
 
+# --- Test MongoDB Connection ---
+import sys
+try:
+    print("--------------------------------------------------")
+    print(f"Attempting to connect to MongoDB...")
+    # Ping the server to check connection
+    mongo_client.admin.command('ping')
+    print("✅ SUCCESS: Successfully connected to MongoDB Atlas!")
+    print(f"Connected to database: {mongo_db_name}")
+    print("--------------------------------------------------")
+except Exception as e:
+    print("--------------------------------------------------")
+    print(f"❌ CRITICAL ERROR: Failed to connect to MongoDB Atlas!")
+    print(f"Error Details: {e}")
+    print("Please check: ")
+    print("1. Your MONGO_URI username and password are correct.")
+    print("2. You have whitelisted all IPs (0.0.0.0/0) in MongoDB Atlas Network Access.")
+    print("--------------------------------------------------")
+
 # Admin Credentials
 app.config['ADMIN_USERNAME'] = os.environ.get('ADMIN_USERNAME', 'admin')
 app.config['ADMIN_PASSWORD'] = os.environ.get('ADMIN_PASSWORD', 'admin123')
