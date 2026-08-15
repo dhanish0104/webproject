@@ -125,7 +125,7 @@ def send_brevo_email(email, subject, html_content):
         "sender": {"email": os.environ.get("BREVO_SENDER_EMAIL", "dhanishkanth1122@gmail.com")},
         "to": [{"email": email}],
         "subject": subject,
-        "htmlContent": html_content
+        "htmlContenta": html_content
     }
     try:
         response = requests.post(url, json=data, headers=headers)
@@ -327,7 +327,8 @@ def category_complaints(category_name):
 def complaint():
     if 'user_id' not in session:
         return redirect(url_for('home'))
-    return render_template('complaint.html')
+    google_maps_api_key = os.environ.get('GOOGLE_MAPS_API_KEY', '')
+    return render_template('complaint.html', google_maps_api_key=google_maps_api_key)
 
 
 @app.route('/submit-complaint', methods=['POST'])
